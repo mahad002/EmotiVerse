@@ -12,8 +12,8 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Mahad Madness',
-  description: 'Explore conversations with Mahad Madness AI.',
+  title: 'MMS Madness',
+  description: 'Explore conversations with MMS Madness AI.',
 };
 
 export default function RootLayout({

@@ -152,7 +152,7 @@ export default function ClientPage() {
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 via-teal-400 to-purple-600 bg-clip-text text-transparent">
-          Mahad Madness
+          MMS Madness
         </h1>
         <p className="text-muted-foreground mt-2">
           Explore conversations with AI.
@@ -313,7 +313,7 @@ export default function ClientPage() {
         </CardContent>
       </Card>
        <footer className="text-center py-8 text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} Mahad Madness. Crafted with care.
+        &copy; {new Date().getFullYear()} Inspirovix. Crafted with care.
       </footer>
     </div>
   );
