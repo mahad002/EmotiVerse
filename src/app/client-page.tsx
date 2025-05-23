@@ -151,7 +151,7 @@ export default function ClientPage() {
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-accent">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 via-teal-400 to-purple-600 bg-clip-text text-transparent">
           Mahad Madness
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -265,7 +265,7 @@ export default function ClientPage() {
                   </div>
                   {msg.sender === 'user' && (
                      <Avatar className="h-8 w-8">
-                      <User className="h-5 w-5 text-accent" />
+                      <User className="h-5 w-5 text-primary" />
                       <AvatarFallback>U</AvatarFallback>
                     </Avatar>
                   )}

@@ -56,33 +56,33 @@ body {
   }
 
   .dark {
-    --background: 220 10% 12%;
-    --foreground: 220 10% 88%;
+    --background: 0 0% 0%; /* Black */
+    --foreground: 0 0% 88%; /* Light Grey for text */
 
-    --card: 220 10% 16%;
-    --card-foreground: 220 10% 88%;
+    --card: 0 0% 7%; /* Dark Grey, almost black for cards */
+    --card-foreground: 0 0% 85%; /* Light Grey for text on cards */
 
-    --popover: 220 10% 10%;
-    --popover-foreground: 220 10% 88%;
+    --popover: 0 0% 5%; /* Very Dark Grey for popovers */
+    --popover-foreground: 0 0% 85%; /* Light Grey for text on popovers */
 
-    --primary: 210 30% 60%; 
-    --primary-foreground: 210 20% 95%;
+    --primary: 210 100% 50%; /* Vibrant Blue */
+    --primary-foreground: 210 20% 98%; /* Almost White */
 
-    --secondary: 220 10% 22%; 
-    --secondary-foreground: 220 10% 75%;
+    --secondary: 0 0% 13%; /* Dark Grey for secondary elements */
+    --secondary-foreground: 0 0% 70%; /* Medium Grey for text on secondary */
 
-    --muted: 220 10% 20%; 
-    --muted-foreground: 220 10% 60%;
+    --muted: 0 0% 10%; /* Dark Grey for muted backgrounds */
+    --muted-foreground: 0 0% 50%; /* Medium-Dark Grey for muted text */
 
-    --accent: 180 30% 55%; 
-    --accent-foreground: 180 15% 95%;
+    --accent: 170 80% 45%; /* Vibrant Teal/Cyan */
+    --accent-foreground: 170 15% 95%; /* Almost White */
 
-    --destructive: 0 60% 55%; 
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 50%; /* Bright Red */
+    --destructive-foreground: 0 0% 98%; /* Almost White */
 
-    --border: 220 10% 28%;
-    --input: 220 10% 18%;
-    --ring: 210 30% 65%;
+    --border: 0 0% 15%; /* Dark Grey for borders */
+    --input: 0 0% 12%; /* Dark Grey for input backgrounds */
+    --ring: 210 100% 65%; /* Lighter Vibrant Blue for focus rings */
 
     /* Keeping existing chart and sidebar colors, can be adjusted later if needed */
     --chart-1: 220 70% 50%;
