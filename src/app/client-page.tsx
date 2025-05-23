@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -155,8 +156,8 @@ export default function ClientPage() {
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
-        <h1 className="text-5xl font-bold tracking-tight flex items-center justify-center gap-3 bg-gradient-to-r from-primary via-accent to-secondary text-transparent bg-clip-text">
-          <Brain className="h-12 w-12 text-primary" />
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-3 bg-gradient-to-r from-primary via-accent to-secondary text-transparent bg-clip-text">
+          <Brain className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
           EmotiVerse
         </h1>
         <p className="text-muted-foreground mt-2">

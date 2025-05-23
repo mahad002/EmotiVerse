@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -55,34 +56,35 @@ body {
   }
 
   .dark {
-    --background: 240 10% 3.9%; /* Dark blue-gray */
-    --foreground: 0 0% 98%; /* Light gray for text */
+    --background: 220 4% 8%; /* Very dark, slightly desaturated cool gray */
+    --foreground: 220 10% 92%; /* Light cool gray, off-white */
 
-    --card: 240 10% 6.9%; /* Slightly lighter dark blue-gray */
-    --card-foreground: 0 0% 98%;
+    --card: 220 4% 12%; /* Slightly lighter dark cool gray */
+    --card-foreground: 220 10% 92%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 220 4% 10%; /* Dark popover, matching background or card */
+    --popover-foreground: 220 10% 92%;
 
-    --primary: 255 80% 70%; /* Dark mode Soft Lavender */
-    --primary-foreground: 255 30% 15%; /* Very dark lavender for text on primary */
+    --primary: 210 30% 50%; /* Muted Steel Blue */
+    --primary-foreground: 210 20% 95%; /* Very Light Blue/White for contrast */
 
-    --secondary: 255 50% 50%; /* Dark mode Lighter Lavender */
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 220 5% 25%; /* Medium-Dark Cool Gray */
+    --secondary-foreground: 220 10% 85%; /* Lighter Gray for contrast */
 
-    --muted: 240 5% 15%; /* Darker muted */
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 220 4% 18%; /* Darker variant of card background for muted elements */
+    --muted-foreground: 220 10% 65%; /* Medium Gray for muted text */
 
-    --accent: 195 30% 40%; /* Dark mode Muted Teal */
-    --accent-foreground: 0 0% 98%;
+    --accent: 180 35% 45%; /* Muted Teal, slightly darker for seriousness */
+    --accent-foreground: 0 0% 100%; /* White for strong contrast on accent */
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 60% 50%; /* Standard clear Red */
+    --destructive-foreground: 0 0% 98%; /* Light text on destructive */
 
-    --border: 240 5% 14.9%;
-    --input: 240 5% 14.9%;
-    --ring: 255 70% 60%; /* Dark mode Lavender for focus rings */
+    --border: 220 4% 22%; /* Subtle border, slightly lighter than muted */
+    --input: 220 4% 16%; /* Darker input background, distinct from card */
+    --ring: 210 30% 60%; /* Lighter version of primary for focus rings */
 
+    /* Keeping existing chart and sidebar colors, can be adjusted later if needed */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
