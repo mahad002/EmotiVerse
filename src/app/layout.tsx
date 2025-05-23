@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Open_Sans } from 'next/font/google';
 import './globals.css';
@@ -11,8 +12,8 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'EmotiVerse',
-  description: 'Converse in emotional matter with AI.',
+  title: 'Mahad Madness',
+  description: 'Explore conversations with Mahad Madness AI.',
 };
 
 export default function RootLayout({

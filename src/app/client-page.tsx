@@ -15,18 +15,17 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import { generateEmotionalPrompt } from '@/ai/flows/generate-emotional-prompt';
 import { emotionalConversation } from '@/ai/flows/emotional-conversation';
-import { Bot, Brain, Loader2, Send, Sparkles, User, Wand2 } from 'lucide-react';
+import { Loader2, Send, Wand2, User } from 'lucide-react';
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
-  personaIcon?: Persona['icon'];
 }
 
 export default function ClientPage() {
@@ -71,7 +70,6 @@ export default function ClientPage() {
           id: Date.now().toString() + '-ai',
           text: data.response,
           sender: 'ai',
-          personaIcon: selectedPersona.icon,
         },
       ]);
     },
@@ -120,7 +118,6 @@ export default function ClientPage() {
         id: 'thinking-message',
         text: '...',
         sender: 'ai',
-        personaIcon: selectedPersona.icon,
       },
     ]);
 
@@ -150,18 +147,15 @@ export default function ClientPage() {
     }
   }, [messages]);
   
-  // TODO: Implement localStorage for saving/loading custom personas or preferences
-  // For now, we use the predefined list.
 
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-3 text-accent">
-          <Brain className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
-          EmotiVerse
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-accent">
+          Mahad Madness
         </h1>
         <p className="text-muted-foreground mt-2">
-          Explore emotional conversations with AI.
+          Explore conversations with AI.
         </p>
       </header>
 
@@ -185,7 +179,6 @@ export default function ClientPage() {
                 {personas.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id}>
                     <div className="flex items-center gap-2">
-                      <persona.icon className="h-5 w-5 text-muted-foreground" />
                       <span>{persona.name}</span>
                     </div>
                   </SelectItem>
@@ -250,10 +243,7 @@ export default function ClientPage() {
                 >
                   {msg.sender === 'ai' && (
                     <Avatar className="h-8 w-8">
-                       {msg.personaIcon ? <msg.personaIcon className="h-5 w-5 text-primary" /> : <Bot className="h-5 w-5 text-primary" /> }
-                      <AvatarFallback>
-                        {msg.personaIcon ? <msg.personaIcon className="h-4 w-4" /> : 'AI'}
-                      </AvatarFallback>
+                      <AvatarFallback>AI</AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -323,7 +313,7 @@ export default function ClientPage() {
         </CardContent>
       </Card>
        <footer className="text-center py-8 text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} EmotiVerse. Crafted with care.
+        &copy; {new Date().getFullYear()} Mahad Madness. Crafted with care.
       </footer>
     </div>
   );
