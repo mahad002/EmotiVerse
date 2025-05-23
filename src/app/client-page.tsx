@@ -156,7 +156,7 @@ export default function ClientPage() {
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-3 bg-gradient-to-r from-primary via-accent to-secondary text-transparent bg-clip-text">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-3 text-accent">
           <Brain className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
           EmotiVerse
         </h1>
@@ -166,10 +166,10 @@ export default function ClientPage() {
       </header>
 
       <Card className="mb-6 shadow-lg">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-2xl">Setup Your Conversation</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 p-4 pt-0 sm:space-y-6 sm:p-6 sm:pt-0">
           <div>
             <label htmlFor="persona-select" className="block text-sm font-medium mb-1">
               Choose an Emotional Persona
@@ -235,7 +235,7 @@ export default function ClientPage() {
       </Card>
 
       <Card className="flex-grow flex flex-col shadow-lg">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-2xl">Conversation</CardTitle>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col overflow-hidden p-0 sm:p-6 sm:pt-0">
