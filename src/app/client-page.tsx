@@ -64,14 +64,18 @@ export default function ClientPage() {
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
     onSuccess: (data) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString() + '-ai',
-          text: data.response,
-          sender: 'ai',
-        },
-      ]);
+      setMessages((prev) => {
+        // Filter out the "thinking" message and add the new AI response
+        const newMessages = prev.filter((msg) => msg.id !== 'thinking-message');
+        return [
+          ...newMessages,
+          {
+            id: Date.now().toString() + '-ai',
+            text: data.response,
+            sender: 'ai',
+          },
+        ];
+      });
     },
     onError: (error) => {
       toast({
@@ -79,6 +83,7 @@ export default function ClientPage() {
         description: error.message || 'AI could not respond.',
         variant: 'destructive',
       });
+      // Just remove the thinking message on error
       setMessages((prev) =>
         prev.filter((msg) => msg.id !== 'thinking-message')
       );
@@ -86,17 +91,11 @@ export default function ClientPage() {
   });
 
   const handleGeneratePrompt = () => {
-    if (!topic.trim()) {
-      toast({
-        title: 'Topic Required',
-        description: 'Please enter a topic for the prompt.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!topic.trim()) return;
+
     promptMutation.mutate({
       emotion: selectedPersona.emotionForPrompt,
-      topic,
+      topic: topic,
     });
   };
 
@@ -126,17 +125,6 @@ export default function ClientPage() {
       persona: selectedPersona.systemPrompt,
     });
   };
-  
-  useEffect(() => {
-    // Remove "thinking" message if it exists and AI has responded
-    if (!conversationMutation.isPending && messages.some(msg => msg.id === 'thinking-message')) {
-        const lastMessage = messages[messages.length -1];
-        if (lastMessage && lastMessage.id !== 'thinking-message' && lastMessage.sender === 'ai') {
-             setMessages(prev => prev.filter(msg => msg.id !== 'thinking-message'));
-        }
-    }
-  }, [messages, conversationMutation.isPending]);
-
 
   useEffect(() => {
     if (scrollAreaRef.current) {
