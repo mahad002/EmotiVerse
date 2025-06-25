@@ -140,7 +140,7 @@ export default function ClientPage() {
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
       <header className="mb-8 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 via-teal-400 to-purple-600 bg-clip-text text-transparent">
-          MMS Madness
+          EmotiVerse
         </h1>
         <p className="text-muted-foreground mt-2">
           Explore conversations with AI.
