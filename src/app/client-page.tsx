@@ -49,7 +49,6 @@ export default function ClientPage() {
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
     onMutate: async (variables) => {
-      // Add a streaming placeholder for the AI response
       const aiMessageId = 'ai-streaming-' + Date.now();
       const newAiMessage: Message = {
         id: aiMessageId,
@@ -64,10 +63,8 @@ export default function ClientPage() {
       const aiMessageId = context?.aiMessageId;
       if (!aiMessageId || !data.response) return;
 
-      // Remove the streaming placeholder
       setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId));
 
-      // Add the AI response chunks as separate messages
       const chunks = data.response;
       for (const chunk of chunks) {
         const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
@@ -89,7 +86,6 @@ export default function ClientPage() {
         description: error.message || 'AI could not respond.',
         variant: 'destructive',
       });
-      // Clean up placeholder on error
       if (context?.aiMessageId) {
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== context.aiMessageId)
@@ -102,7 +98,7 @@ export default function ClientPage() {
     if (!userInput.trim()) return;
 
     if (messages.some((msg) => msg.isStreaming)) {
-       const newUserMessage: Message = {
+      const newUserMessage: Message = {
         id: Date.now().toString() + '-user',
         text: userInput,
         sender: 'user',
@@ -145,7 +141,6 @@ export default function ClientPage() {
     }
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
@@ -156,8 +151,8 @@ export default function ClientPage() {
   }, [userInput]);
 
   return (
-    <div className="container mx-auto p-4 flex flex-col h-[calc(100vh-2rem)] max-w-3xl">
-      <header className="mb-4 text-center">
+    <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
+      <header className="mb-4 text-center flex-shrink-0">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
           EmotiVerse
         </h1>
@@ -166,7 +161,7 @@ export default function ClientPage() {
         </p>
       </header>
 
-      <Card className="flex-grow flex flex-col shadow-lg border bg-card">
+      <Card className="flex-1 flex flex-col shadow-lg border bg-card min-h-0">
         <CardHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
