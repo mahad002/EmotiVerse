@@ -21,7 +21,15 @@ import {
   emotionalConversation,
   type EmotionalConversationInput,
 } from '@/ai/flows/emotional-conversation';
-import { Loader2, Send, User, CheckCheck } from 'lucide-react';
+import { textToSpeech } from '@/ai/flows/text-to-speech';
+import {
+  Loader2,
+  Send,
+  User,
+  CheckCheck,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -40,11 +48,29 @@ export default function ClientPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState<string>('');
 
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [audioQueue, setAudioQueue] = useState<string[]>([]);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
+
+  const ttsMutation = useMutation({
+    mutationFn: textToSpeech,
+    onSuccess: (data) => {
+      if (data.audioDataUri) {
+        setAudioQueue((prev) => [...prev, data.audioDataUri]);
+      }
+    },
+    onError: (error) => {
+      console.error('TTS Error:', error);
+      // We don't show a toast for TTS errors as it would be too noisy.
+    },
+  });
 
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
@@ -78,6 +104,10 @@ export default function ClientPage() {
           sender: 'ai',
         };
         setMessages((prev) => [...prev, newAiMessage]);
+
+        if (isVoiceEnabled) {
+          ttsMutation.mutate(chunk);
+        }
       }
     },
     onError: (error, variables, context) => {
@@ -133,6 +163,52 @@ export default function ClientPage() {
   };
 
   useEffect(() => {
+    // Stop any playing audio if the component unmounts or voice is disabled.
+    if (!isVoiceEnabled && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      setAudioQueue([]);
+      setIsAudioPlaying(false);
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [isVoiceEnabled]);
+
+  useEffect(() => {
+    if (isVoiceEnabled && !isAudioPlaying && audioQueue.length > 0) {
+      const nextAudioSrc = audioQueue[0];
+      audioRef.current = new Audio(nextAudioSrc);
+
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsAudioPlaying(true);
+          })
+          .catch((error) => {
+            console.error('Audio playback failed:', error);
+            // If autoplay fails, just move on to the next item
+            setIsAudioPlaying(false);
+            setAudioQueue((prev) => prev.slice(1));
+          });
+      }
+
+      audioRef.current.onended = () => {
+        setIsAudioPlaying(false);
+        setAudioQueue((prev) => prev.slice(1));
+      };
+      audioRef.current.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        setIsAudioPlaying(false);
+        setAudioQueue((prev) => prev.slice(1));
+      };
+    }
+  }, [audioQueue, isAudioPlaying, isVoiceEnabled]);
+
+  useEffect(() => {
     if (scrollAreaRef.current) {
       const scrollElement = scrollAreaRef.current.querySelector('div > div');
       if (scrollElement) {
@@ -165,25 +241,49 @@ export default function ClientPage() {
         <CardHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
-            <div className="w-48">
-              <Select
-                value={selectedPersonaId}
-                onValueChange={setSelectedPersonaId}
-              >
-                <SelectTrigger
-                  id="persona-select"
-                  className="h-9 text-xs"
+            <div className="flex items-center gap-2">
+              <div className="w-48">
+                <Select
+                  value={selectedPersonaId}
+                  onValueChange={(value) => {
+                    setSelectedPersonaId(value);
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                    }
+                    setAudioQueue([]);
+                    setIsAudioPlaying(false);
+                  }}
                 >
-                  <SelectValue placeholder="Select a persona..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {personas.map((persona) => (
-                    <SelectItem key={persona.id} value={persona.id}>
-                      {persona.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    id="persona-select"
+                    className="h-9 text-xs"
+                  >
+                    <SelectValue placeholder="Select a persona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {personas.map((persona) => (
+                      <SelectItem key={persona.id} value={persona.id}>
+                        {persona.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsVoiceEnabled((v) => !v)}
+                className="h-9 w-9"
+                aria-label={
+                  isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'
+                }
+              >
+                {isVoiceEnabled ? (
+                  <Volume2 className="h-5 w-5" />
+                ) : (
+                  <VolumeX className="h-5 w-5 text-muted-foreground" />
+                )}
+              </Button>
             </div>
           </div>
         </CardHeader>

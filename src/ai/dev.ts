@@ -3,3 +3,4 @@ config();
 
 import '@/ai/flows/generate-emotional-prompt.ts';
 import '@/ai/flows/emotional-conversation.ts';
+import '@/ai/flows/text-to-speech.ts';
