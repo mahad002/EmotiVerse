@@ -82,27 +82,26 @@ export default function ClientPage() {
       const aiMessageId = context?.aiMessageId;
       if (!aiMessageId || !data.response) return;
 
+      // First, remove the "typing..." placeholder message
+      setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId));
+
       const chunks = data.response;
-      let accumulatedText = '';
 
-      // Stream chunks with a delay
+      // Add each chunk as a new message with a delay to simulate live conversation
       for (const chunk of chunks) {
-        accumulatedText = (accumulatedText + ' ' + chunk).trim();
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMessageId ? { ...msg, text: accumulatedText } : msg
-          )
+        // Small delay before showing the next message
+        await new Promise((res) =>
+          setTimeout(res, 400 + Math.random() * 500)
         );
-        // Random delay to simulate typing
-        await new Promise((res) => setTimeout(res, 200 + Math.random() * 400));
-      }
 
-      // Mark streaming as complete
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === aiMessageId ? { ...msg, isStreaming: false } : msg
-        )
-      );
+        const newAiMessage: Message = {
+          id: 'ai-' + Date.now() + '-' + Math.random(),
+          text: chunk,
+          sender: 'ai',
+        };
+
+        setMessages((prev) => [...prev, newAiMessage]);
+      }
     },
     onError: (error, variables, context) => {
       toast({
