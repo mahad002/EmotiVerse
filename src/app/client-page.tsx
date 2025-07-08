@@ -20,6 +20,7 @@ import { defaultPersonas, type Persona } from '@/config/personas';
 import { generateEmotionalPrompt } from '@/ai/flows/generate-emotional-prompt';
 import { emotionalConversation } from '@/ai/flows/emotional-conversation';
 import { Loader2, Send, Wand2, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -243,9 +244,10 @@ export default function ClientPage() {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex items-end gap-2 ${
+                  className={cn(
+                    'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
                     msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  )}
                 >
                   {msg.sender === 'ai' && (
                     <Avatar className="h-8 w-8">
