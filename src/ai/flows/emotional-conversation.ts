@@ -18,7 +18,7 @@ const EmotionalConversationInputSchema = z.object({
 export type EmotionalConversationInput = z.infer<typeof EmotionalConversationInputSchema>;
 
 const EmotionalConversationOutputSchema = z.object({
-  response: z.string().describe('The response from the AI incorporating the emotional persona.'),
+  response: z.array(z.string()).describe('The response from the AI, broken down into conversational chunks with fillers.'),
 });
 export type EmotionalConversationOutput = z.infer<typeof EmotionalConversationOutputSchema>;
 
@@ -33,6 +33,12 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant with the following emotional persona: {{{persona}}}.
 
   Respond to the following message from the user, incorporating the emotional persona into your response.
+
+  IMPORTANT: Your response MUST be broken down into a series of short, natural-sounding sentences or phrases, as if you were speaking in a real conversation.
+  Include conversational fillers like "Hmm...", "Well...", "You know...", "Right.", etc., to make it sound more human.
+  Do not deliver the entire response in one go. Each part of the response should be a separate string in the output array.
+
+  Your final output must be in the specified JSON format.
 
   Message: {{{message}}}`,
 });

@@ -26,6 +26,7 @@ interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
+  isStreaming?: boolean;
 }
 
 export default function ClientPage() {
@@ -63,30 +64,58 @@ export default function ClientPage() {
 
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
-    onSuccess: (data) => {
-      setMessages((prev) => {
-        // Filter out the "thinking" message and add the new AI response
-        const newMessages = prev.filter((msg) => msg.id !== 'thinking-message');
-        return [
-          ...newMessages,
-          {
-            id: Date.now().toString() + '-ai',
-            text: data.response,
-            sender: 'ai',
-          },
-        ];
-      });
+    onMutate: async () => {
+      // Create a new AI message placeholder for streaming
+      const aiMessageId = 'ai-streaming-' + Date.now();
+      const newAiMessage: Message = {
+        id: aiMessageId,
+        text: '', // Initially empty
+        sender: 'ai',
+        isStreaming: true,
+      };
+      setMessages((prev) => [...prev, newAiMessage]);
+
+      // Return context to be used in onError and onSuccess
+      return { aiMessageId };
     },
-    onError: (error) => {
+    onSuccess: async (data, variables, context) => {
+      const aiMessageId = context?.aiMessageId;
+      if (!aiMessageId || !data.response) return;
+
+      const chunks = data.response;
+      let accumulatedText = '';
+
+      // Stream chunks with a delay
+      for (const chunk of chunks) {
+        accumulatedText = (accumulatedText + ' ' + chunk).trim();
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessageId ? { ...msg, text: accumulatedText } : msg
+          )
+        );
+        // Random delay to simulate typing
+        await new Promise((res) => setTimeout(res, 200 + Math.random() * 400));
+      }
+
+      // Mark streaming as complete
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessageId ? { ...msg, isStreaming: false } : msg
+        )
+      );
+    },
+    onError: (error, variables, context) => {
       toast({
         title: 'Error in Conversation',
         description: error.message || 'AI could not respond.',
         variant: 'destructive',
       });
-      // Just remove the thinking message on error
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== 'thinking-message')
-      );
+      // Remove the placeholder message on error
+      if (context?.aiMessageId) {
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== context.aiMessageId)
+        );
+      }
     },
   });
 
@@ -100,7 +129,7 @@ export default function ClientPage() {
   };
 
   const handleSendMessage = () => {
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || conversationMutation.isPending) return;
 
     const newUserMessage: Message = {
       id: Date.now().toString() + '-user',
@@ -109,16 +138,6 @@ export default function ClientPage() {
     };
     setMessages((prev) => [...prev, newUserMessage]);
     setUserInput('');
-
-    // Add a temporary "thinking" message for AI
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: 'thinking-message',
-        text: '...',
-        sender: 'ai',
-      },
-    ]);
 
     conversationMutation.mutate({
       message: userInput,
@@ -241,7 +260,7 @@ export default function ClientPage() {
                         : 'bg-card text-card-foreground border border-border rounded-bl-none'
                     }`}
                   >
-                    {msg.id === 'thinking-message' && conversationMutation.isPending ? (
+                    {msg.isStreaming && msg.text.length === 0 ? (
                         <div className="flex items-center space-x-1">
                             <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
                             <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
