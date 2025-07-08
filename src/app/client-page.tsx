@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -89,9 +88,10 @@ export default function ClientPage() {
 
       // Add each chunk as a new message with a delay to simulate live conversation
       for (const chunk of chunks) {
-        // Small delay before showing the next message
+        // Realistic delay based on chunk length to simulate typing
+        const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
         await new Promise((res) =>
-          setTimeout(res, 400 + Math.random() * 500)
+          setTimeout(res, Math.min(typingDelay, 3000)) // Cap delay at 3 seconds
         );
 
         const newAiMessage: Message = {

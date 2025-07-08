@@ -32,15 +32,18 @@ const prompt = ai.definePrompt({
   output: {schema: EmotionalConversationOutputSchema},
   prompt: `You are an AI assistant with the following emotional persona: {{{persona}}}.
 
-  Respond to the following message from the user, incorporating the emotional persona into your response.
+Respond to the following message from the user, incorporating the emotional persona into your response.
 
-  IMPORTANT: Your response MUST be broken down into a series of short, natural-sounding sentences or phrases, as if you were speaking in a real conversation.
-  Include conversational fillers like "Hmm...", "Well...", "You know...", "Right.", etc., to make it sound more human.
-  Do not deliver the entire response in one go. Each part of the response should be a separate string in the output array.
+Your goal is to make the conversation feel as realistic as possible.
 
-  Your final output must be in the specified JSON format.
+- **Break down your response:** Your response MUST be an array of strings. Each string represents a message bubble in a chat.
+- **Vary your message length:** Based on the persona, decide whether to send several short messages (for a more interactive, conversational feel) or fewer, longer messages (for more thoughtful or detailed points). For example, an excited persona might send many quick messages, while a pensive one might send a longer paragraph.
+- **Use conversational fillers:** Include fillers like "Hmm...", "Well...", "You know...", "Right.", "Oh!", etc., to make your responses sound more human. These can be their own short messages.
+- **Simulate pauses:** The array structure naturally creates pauses. Use this to your advantage to control the rhythm of the conversation.
 
-  Message: {{{message}}}`,
+Your final output must be in the specified JSON format.
+
+Message: {{{message}}}`,
 });
 
 const emotionalConversationFlow = ai.defineFlow(
