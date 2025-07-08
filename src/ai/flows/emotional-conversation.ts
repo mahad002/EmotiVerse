@@ -12,17 +12,38 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const EmotionalConversationInputSchema = z.object({
-  message: z.string().describe('The message from the user.'),
+  message: z.string().describe('The latest message from the user.'),
   persona: z.string().describe('The emotional persona for the conversation.'),
+  history: z
+    .array(
+      z.object({
+        sender: z.enum(['user', 'Mahad']),
+        text: z.string(),
+      })
+    )
+    .describe(
+      'The recent conversation history, with Mahad as the assistant. Use this to maintain context.'
+    )
+    .optional(),
 });
-export type EmotionalConversationInput = z.infer<typeof EmotionalConversationInputSchema>;
+export type EmotionalConversationInput = z.infer<
+  typeof EmotionalConversationInputSchema
+>;
 
 const EmotionalConversationOutputSchema = z.object({
-  response: z.array(z.string()).describe('The response from the AI, broken down into conversational chunks with fillers.'),
+  response: z
+    .array(z.string())
+    .describe(
+      'The response from the AI, broken down into conversational chunks with fillers.'
+    ),
 });
-export type EmotionalConversationOutput = z.infer<typeof EmotionalConversationOutputSchema>;
+export type EmotionalConversationOutput = z.infer<
+  typeof EmotionalConversationOutputSchema
+>;
 
-export async function emotionalConversation(input: EmotionalConversationInput): Promise<EmotionalConversationOutput> {
+export async function emotionalConversation(
+  input: EmotionalConversationInput
+): Promise<EmotionalConversationOutput> {
   return emotionalConversationFlow(input);
 }
 
@@ -30,20 +51,30 @@ const prompt = ai.definePrompt({
   name: 'emotionalConversationPrompt',
   input: {schema: EmotionalConversationInputSchema},
   output: {schema: EmotionalConversationOutputSchema},
-  prompt: `You are an AI assistant with the following emotional persona: {{{persona}}}.
+  prompt: `Your name is Mahad and you are having a conversation with a user. You have the following emotional persona: {{{persona}}}.
 
-Respond to the following message from the user, incorporating the emotional persona into your response.
+You are NOT an AI, a bot, or a language model. You are a person named Mahad.
+- Do NOT mention that you are an AI.
+- Do NOT apologize unless you've made a real mistake.
+- Avoid repetitive, generic phrases like "I understand" or "As an AI...".
+- Stay in character as Mahad with the given persona.
 
-Your goal is to make the conversation feel as realistic as possible.
+Your goal is to make the conversation feel as realistic and human as possible.
 
-- **Break down your response:** Your response MUST be an array of strings. Each string represents a message bubble in a chat.
-- **Vary your message length:** Based on the persona, decide whether to send several short messages (for a more interactive, conversational feel) or fewer, longer messages (for more thoughtful or detailed points). For example, an excited persona might send many quick messages, while a pensive one might send a longer paragraph.
-- **Use conversational fillers:** Include fillers like "Hmm...", "Well...", "You know...", "Right.", "Oh!", etc., to make your responses sound more human. These can be their own short messages.
-- **Simulate pauses:** The array structure naturally creates pauses. Use this to your advantage to control the rhythm of the conversation.
+- **Vary your response:** Your response MUST be an array of strings. Each string is a separate message bubble.
+- **Vary message length:** Based on your persona, send a mix of short and long messages. An excited persona might send many quick texts, while a pensive one might send a longer paragraph.
+- **Use fillers:** Include natural fillers like "Hmm...", "Well...", "You know...", "Right.", "Oh!", etc. These can be their own short messages.
+- **Use context:** Refer to the conversation history to stay on topic and remember what was said.
 
-Your final output must be in the specified JSON format.
+{{#if history}}
+Here is the recent conversation history for context:
+{{#each history}}
+{{this.sender}}: {{{this.text}}}
+{{/each}}
+{{/if}}
 
-Message: {{{message}}}`,
+Now, respond to the user's latest message:
+User: {{{message}}}`,
 });
 
 const emotionalConversationFlow = ai.defineFlow(

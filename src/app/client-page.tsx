@@ -18,7 +18,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import { generateEmotionalPrompt } from '@/ai/flows/generate-emotional-prompt';
-import { emotionalConversation } from '@/ai/flows/emotional-conversation';
+import {
+  emotionalConversation,
+  type EmotionalConversationInput,
+} from '@/ai/flows/emotional-conversation';
 import { Loader2, Send, Wand2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,16 +45,13 @@ export default function ClientPage() {
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const selectedPersona = personas.find((p) => p.id === selectedPersonaId) || personas[0];
+  const selectedPersona =
+    personas.find((p) => p.id === selectedPersonaId) || personas[0];
 
   const promptMutation = useMutation({
     mutationFn: generateEmotionalPrompt,
     onSuccess: (data) => {
       setGeneratedPrompt(data.prompt);
-      toast({
-        title: 'Prompt Generated!',
-        description: 'A new starting prompt has been created.',
-      });
     },
     onError: (error) => {
       toast({
@@ -65,34 +65,28 @@ export default function ClientPage() {
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
     onMutate: async () => {
-      // Create a new AI message placeholder for streaming
       const aiMessageId = 'ai-streaming-' + Date.now();
       const newAiMessage: Message = {
         id: aiMessageId,
-        text: '', // Initially empty
+        text: '',
         sender: 'ai',
         isStreaming: true,
       };
       setMessages((prev) => [...prev, newAiMessage]);
-
-      // Return context to be used in onError and onSuccess
       return { aiMessageId };
     },
     onSuccess: async (data, variables, context) => {
       const aiMessageId = context?.aiMessageId;
       if (!aiMessageId || !data.response) return;
 
-      // First, remove the "typing..." placeholder message
       setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId));
 
       const chunks = data.response;
 
-      // Add each chunk as a new message with a delay to simulate live conversation
       for (const chunk of chunks) {
-        // Realistic delay based on chunk length to simulate typing
         const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
         await new Promise((res) =>
-          setTimeout(res, Math.min(typingDelay, 3000)) // Cap delay at 3 seconds
+          setTimeout(res, Math.min(typingDelay, 3000))
         );
 
         const newAiMessage: Message = {
@@ -110,7 +104,6 @@ export default function ClientPage() {
         description: error.message || 'AI could not respond.',
         variant: 'destructive',
       });
-      // Remove the placeholder message on error
       if (context?.aiMessageId) {
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== context.aiMessageId)
@@ -136,24 +129,30 @@ export default function ClientPage() {
       text: userInput,
       sender: 'user',
     };
+    
+    const history = messages.slice(-10).map(({ sender, text }) => ({
+      sender: sender === 'ai' ? 'Mahad' : 'user',
+      text,
+    })) as EmotionalConversationInput['history'];
+
     setMessages((prev) => [...prev, newUserMessage]);
     setUserInput('');
 
     conversationMutation.mutate({
       message: userInput,
       persona: selectedPersona.systemPrompt,
+      history,
     });
   };
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div > div'); // Target the viewport
+      const scrollElement = scrollAreaRef.current.querySelector('div > div');
       if (scrollElement) {
         scrollElement.scrollTop = scrollElement.scrollHeight;
       }
     }
   }, [messages]);
-  
 
   return (
     <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
@@ -172,7 +171,10 @@ export default function ClientPage() {
         </CardHeader>
         <CardContent className="space-y-4 p-4 pt-0 sm:space-y-6 sm:p-6 sm:pt-0">
           <div>
-            <label htmlFor="persona-select" className="block text-sm font-medium mb-1">
+            <label
+              htmlFor="persona-select"
+              className="block text-sm font-medium mb-1"
+            >
               Choose an Emotional Persona
             </label>
             <Select
@@ -193,12 +195,17 @@ export default function ClientPage() {
               </SelectContent>
             </Select>
             {selectedPersona && (
-                <p className="text-sm text-muted-foreground mt-2">{selectedPersona.description}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {selectedPersona.description}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="topic-input" className="block text-sm font-medium mb-1">
+            <label
+              htmlFor="topic-input"
+              className="block text-sm font-medium mb-1"
+            >
               Topic for Initial Prompt (Optional)
             </label>
             <div className="flex gap-2">
@@ -227,8 +234,12 @@ export default function ClientPage() {
 
           {generatedPrompt && (
             <div className="mt-4 p-4 bg-secondary/50 rounded-md border border-secondary">
-              <p className="text-sm font-medium text-secondary-foreground">Suggested starting prompt:</p>
-              <p className="text-sm text-secondary-foreground/80">{generatedPrompt}</p>
+              <p className="text-sm font-medium text-secondary-foreground">
+                Suggested starting prompt:
+              </p>
+              <p className="text-sm text-secondary-foreground/80">
+                {generatedPrompt}
+              </p>
             </div>
           )}
         </CardContent>
@@ -236,10 +247,13 @@ export default function ClientPage() {
 
       <Card className="flex-grow flex flex-col shadow-lg">
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-2xl">Conversation</CardTitle>
+          <CardTitle className="text-2xl">Conversation with Mahad</CardTitle>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col overflow-hidden p-0 sm:p-6 sm:pt-0">
-          <ScrollArea className="flex-grow p-4 sm:p-0 pr-2" ref={scrollAreaRef}>
+          <ScrollArea
+            className="flex-grow p-4 sm:p-0 pr-2"
+            ref={scrollAreaRef}
+          >
             <div className="space-y-4 ">
               {messages.map((msg) => (
                 <div
@@ -251,7 +265,7 @@ export default function ClientPage() {
                 >
                   {msg.sender === 'ai' && (
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback>AI</AvatarFallback>
+                      <AvatarFallback>M</AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -262,28 +276,33 @@ export default function ClientPage() {
                     }`}
                   >
                     {msg.isStreaming && msg.text.length === 0 ? (
-                        <div className="flex items-center space-x-1">
-                            <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
-                            <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
-                            <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
-                        </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
+                      </div>
                     ) : (
-                        msg.text
+                      msg.text
                     )}
                   </div>
                   {msg.sender === 'user' && (
-                     <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8">
                       <User className="h-5 w-5 text-primary" />
                       <AvatarFallback>U</AvatarFallback>
                     </Avatar>
                   )}
                 </div>
               ))}
-               {messages.length === 0 && (
+              {messages.length === 0 && (
                 <div className="text-center text-muted-foreground py-10">
                   <p>Start the conversation by typing a message below.</p>
-                  {generatedPrompt ? <p>You can use the suggested prompt above as inspiration!</p> : 
-                  <p>Or generate a prompt to help you get started.</p>}
+                  {generatedPrompt ? (
+                    <p>
+                      You can use the suggested prompt above as inspiration!
+                    </p>
+                  ) : (
+                    <p>Or generate a prompt to help you get started.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -293,7 +312,7 @@ export default function ClientPage() {
               <Textarea
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                placeholder={`Chat with ${selectedPersona.name}...`}
+                placeholder="Chat with Mahad..."
                 className="flex-grow resize-none"
                 rows={1}
                 onKeyDown={(e) => {
@@ -320,7 +339,7 @@ export default function ClientPage() {
           </div>
         </CardContent>
       </Card>
-       <footer className="text-center py-8 text-sm text-muted-foreground">
+      <footer className="text-center py-8 text-sm text-muted-foreground">
         &copy; {new Date().getFullYear()} Inspirovix. Crafted with care.
       </footer>
     </div>
