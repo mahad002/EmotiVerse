@@ -9,50 +9,40 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 0%; /* Black */
-    --foreground: 0 0% 88%; /* Light Grey for text */
+    --background: 222 84% 4.9%; /* Deep Blue, almost black */
+    --foreground: 210 40% 98%; /* White */
 
-    --card: 0 0% 7%; /* Dark Grey, almost black for cards */
-    --card-foreground: 0 0% 85%; /* Light Grey for text on cards */
+    --card: 222 84% 9%; /* Slightly lighter deep blue for cards */
+    --card-foreground: 210 40% 98%; /* White */
 
-    --popover: 0 0% 5%; /* Very Dark Grey for popovers */
-    --popover-foreground: 0 0% 85%; /* Light Grey for text on popovers */
+    --popover: 222 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 260 100% 70%; /* Vibrant Violet */
-    --primary-foreground: 260 20% 98%; /* Almost White */
+    --primary: 217 91% 60%; /* Bright Blue */
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 0 0% 13%; /* Dark Grey for secondary elements */
-    --secondary-foreground: 0 0% 70%; /* Medium Grey for text on secondary */
+    --secondary: 222 47% 11%; /* Muted blue */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 10%; /* Dark Grey for muted backgrounds */
-    --muted-foreground: 0 0% 50%; /* Medium-Dark Grey for muted text */
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 180 100% 45%; /* Vibrant Cyan/Teal */
-    --accent-foreground: 180 15% 95%; /* Almost White */
+    --accent: 262 84% 58%; /* Vibrant Purple */
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 70% 50%; /* Bright Red */
-    --destructive-foreground: 0 0% 98%; /* Almost White */
+    --destructive: 0 63% 31%; /* Dark Red */
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 15%; /* Dark Grey for borders */
-    --input: 0 0% 12%; /* Dark Grey for input backgrounds */
-    --ring: 260 100% 75%; /* Lighter Vibrant Violet for focus rings */
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --radius: 0.5rem;
-
-    /* Sidebar specific colors - can be adjusted if sidebar is heavily used */
-    --sidebar-background: 0 0% 7%; /* Slightly lighter than main card to differentiate */
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 260 100% 70%; /* Consistent with main primary */
-    --sidebar-primary-foreground: 260 20% 98%;
-    --sidebar-accent: 180 100% 45%; /* Consistent with main accent */
-    --sidebar-accent-foreground: 180 15% 95%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 260 100% 75%;
+    --radius: 0.75rem;
   }
 }
 

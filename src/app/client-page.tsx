@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -17,12 +16,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
-import { generateEmotionalPrompt } from '@/ai/flows/generate-emotional-prompt';
 import {
   emotionalConversation,
   type EmotionalConversationInput,
 } from '@/ai/flows/emotional-conversation';
-import { Loader2, Send, Wand2, User } from 'lucide-react';
+import { Loader2, Send, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -34,37 +32,23 @@ interface Message {
 
 export default function ClientPage() {
   const { toast } = useToast();
-  const [personas, setPersonas] = useState<Persona[]>(defaultPersonas);
+  const [personas] = useState<Persona[]>(defaultPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
     defaultPersonas[0].id
   );
-  const [topic, setTopic] = useState<string>('');
-  const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState<string>('');
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
 
-  const promptMutation = useMutation({
-    mutationFn: generateEmotionalPrompt,
-    onSuccess: (data) => {
-      setGeneratedPrompt(data.prompt);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error Generating Prompt',
-        description: error.message || 'Could not generate prompt.',
-        variant: 'destructive',
-      });
-    },
-  });
-
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
-    onMutate: async () => {
+    onMutate: async (variables) => {
+      // Add a streaming placeholder for the AI response
       const aiMessageId = 'ai-streaming-' + Date.now();
       const newAiMessage: Message = {
         id: aiMessageId,
@@ -79,10 +63,11 @@ export default function ClientPage() {
       const aiMessageId = context?.aiMessageId;
       if (!aiMessageId || !data.response) return;
 
+      // Remove the streaming placeholder
       setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId));
 
+      // Add the AI response chunks as separate messages
       const chunks = data.response;
-
       for (const chunk of chunks) {
         const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
         await new Promise((res) =>
@@ -94,7 +79,6 @@ export default function ClientPage() {
           text: chunk,
           sender: 'ai',
         };
-
         setMessages((prev) => [...prev, newAiMessage]);
       }
     },
@@ -104,6 +88,7 @@ export default function ClientPage() {
         description: error.message || 'AI could not respond.',
         variant: 'destructive',
       });
+      // Clean up placeholder on error
       if (context?.aiMessageId) {
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== context.aiMessageId)
@@ -112,28 +97,21 @@ export default function ClientPage() {
     },
   });
 
-  const handleGeneratePrompt = () => {
-    if (!topic.trim()) return;
-
-    promptMutation.mutate({
-      emotion: selectedPersona.emotionForPrompt,
-      topic: topic,
-    });
-  };
-
   const handleSendMessage = () => {
-    if (!userInput.trim() || conversationMutation.isPending) return;
+    if (!userInput.trim()) return;
 
     const newUserMessage: Message = {
       id: Date.now().toString() + '-user',
       text: userInput,
       sender: 'user',
     };
-    
-    const history = messages.slice(-10).map(({ sender, text }) => ({
-      sender: sender === 'ai' ? 'Mahad' : 'user',
-      text,
-    })) as EmotionalConversationInput['history'];
+
+    const history = [...messages, newUserMessage]
+      .slice(-10)
+      .map(({ sender, text }) => ({
+        sender: sender === 'ai' ? 'Mahad' : 'user',
+        text,
+      })) as EmotionalConversationInput['history'];
 
     setMessages((prev) => [...prev, newUserMessage]);
     setUserInput('');
@@ -154,10 +132,20 @@ export default function ClientPage() {
     }
   }, [messages]);
 
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = 'auto';
+      const maxHeight = 128; // 8rem
+      const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
+      textAreaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [userInput]);
+
   return (
-    <div className="container mx-auto p-4 flex flex-col min-h-screen max-w-3xl">
-      <header className="mb-8 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 via-teal-400 to-purple-600 bg-clip-text text-transparent">
+    <div className="container mx-auto p-4 flex flex-col h-[calc(100vh-2rem)] max-w-3xl">
+      <header className="mb-4 text-center">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
           EmotiVerse
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -165,118 +153,58 @@ export default function ClientPage() {
         </p>
       </header>
 
-      <Card className="mb-6 shadow-lg">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-2xl">Setup Your Conversation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 p-4 pt-0 sm:space-y-6 sm:p-6 sm:pt-0">
-          <div>
-            <label
-              htmlFor="persona-select"
-              className="block text-sm font-medium mb-1"
-            >
-              Choose an Emotional Persona
-            </label>
-            <Select
-              value={selectedPersonaId}
-              onValueChange={setSelectedPersonaId}
-            >
-              <SelectTrigger id="persona-select" className="w-full">
-                <SelectValue placeholder="Select a persona..." />
-              </SelectTrigger>
-              <SelectContent>
-                {personas.map((persona) => (
-                  <SelectItem key={persona.id} value={persona.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{persona.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedPersona && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {selectedPersona.description}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="topic-input"
-              className="block text-sm font-medium mb-1"
-            >
-              Topic for Initial Prompt (Optional)
-            </label>
-            <div className="flex gap-2">
-              <Input
-                id="topic-input"
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g., my day, a recent dream, future plans"
-                className="flex-grow"
-              />
-              <Button
-                onClick={handleGeneratePrompt}
-                disabled={promptMutation.isPending || !topic.trim()}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+      <Card className="flex-grow flex flex-col shadow-lg border-0 bg-card/50">
+        <CardHeader className="p-4 border-b">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
+            <div className="w-48">
+              <Select
+                value={selectedPersonaId}
+                onValueChange={setSelectedPersonaId}
               >
-                {promptMutation.isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Wand2 className="h-5 w-5" />
-                )}
-                <span className="ml-2 hidden sm:inline">Generate Prompt</span>
-              </Button>
+                <SelectTrigger
+                  id="persona-select"
+                  className="h-9 text-xs"
+                >
+                  <SelectValue placeholder="Select a persona..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {personas.map((persona) => (
+                    <SelectItem key={persona.id} value={persona.id}>
+                      {persona.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          {generatedPrompt && (
-            <div className="mt-4 p-4 bg-secondary/50 rounded-md border border-secondary">
-              <p className="text-sm font-medium text-secondary-foreground">
-                Suggested starting prompt:
-              </p>
-              <p className="text-sm text-secondary-foreground/80">
-                {generatedPrompt}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="flex-grow flex flex-col shadow-lg">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-2xl">Conversation with Mahad</CardTitle>
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col overflow-hidden p-0 sm:p-6 sm:pt-0">
-          <ScrollArea
-            className="flex-grow p-4 sm:p-0 pr-2"
-            ref={scrollAreaRef}
-          >
-            <div className="space-y-4 ">
+        <CardContent className="flex-grow flex flex-col overflow-hidden p-2 sm:p-4 sm:pt-0">
+          <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
+            <div className="space-y-4 py-4">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={cn(
-                    'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
+                    'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full',
                     msg.sender === 'user' ? 'justify-end' : 'justify-start'
                   )}
                 >
                   {msg.sender === 'ai' && (
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 self-start">
                       <AvatarFallback>M</AvatarFallback>
                     </Avatar>
                   )}
                   <div
-                    className={`max-w-[70%] rounded-xl px-4 py-3 shadow-md text-sm ${
+                    className={cn(
+                      'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-md text-sm leading-relaxed',
                       msg.sender === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-none'
-                        : 'bg-card text-card-foreground border border-border rounded-bl-none'
-                    }`}
+                        ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-primary-foreground rounded-br-lg'
+                        : 'bg-secondary text-secondary-foreground rounded-bl-lg'
+                    )}
                   >
                     {msg.isStreaming && msg.text.length === 0 ? (
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1 py-1">
                         <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
                         <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
                         <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
@@ -286,34 +214,29 @@ export default function ClientPage() {
                     )}
                   </div>
                   {msg.sender === 'user' && (
-                    <Avatar className="h-8 w-8">
-                      <User className="h-5 w-5 text-primary" />
-                      <AvatarFallback>U</AvatarFallback>
+                    <Avatar className="h-8 w-8 self-start">
+                      <AvatarFallback className="bg-transparent">
+                        <User className="h-5 w-5 text-primary" />
+                      </AvatarFallback>
                     </Avatar>
                   )}
                 </div>
               ))}
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground py-10">
-                  <p>Start the conversation by typing a message below.</p>
-                  {generatedPrompt ? (
-                    <p>
-                      You can use the suggested prompt above as inspiration!
-                    </p>
-                  ) : (
-                    <p>Or generate a prompt to help you get started.</p>
-                  )}
+                  <p>Select a persona and start the conversation.</p>
                 </div>
               )}
             </div>
           </ScrollArea>
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center gap-2">
+          <div className="mt-auto pt-2">
+            <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-secondary">
               <Textarea
+                ref={textAreaRef}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Chat with Mahad..."
-                className="flex-grow resize-none"
+                placeholder="Message Mahad..."
+                className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32"
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -326,7 +249,7 @@ export default function ClientPage() {
                 onClick={handleSendMessage}
                 disabled={conversationMutation.isPending || !userInput.trim()}
                 size="icon"
-                className="h-10 w-10 shrink-0"
+                className="h-10 w-10 shrink-0 bg-primary hover:bg-primary/90 rounded-full"
               >
                 {conversationMutation.isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -339,9 +262,6 @@ export default function ClientPage() {
           </div>
         </CardContent>
       </Card>
-      <footer className="text-center py-8 text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} Inspirovix. Crafted with care.
-      </footer>
     </div>
   );
 }
