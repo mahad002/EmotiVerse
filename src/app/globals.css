@@ -9,32 +9,34 @@ body {
 
 @layer base {
   :root {
-    --background: 222 84% 4.9%; /* Deep Blue, almost black */
-    --foreground: 210 40% 98%; /* White */
+    --background: 210 40% 98%; /* Light Gray background */
+    --foreground: 222.2 84% 4.9%;
 
-    --card: 222 84% 9%; /* Slightly lighter deep blue for cards */
-    --card-foreground: 210 40% 98%; /* White */
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 222 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 217 91% 60%; /* Bright Blue */
-    --primary-foreground: 210 40% 98%;
+    /* iMessage Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%; /* White text on blue */
 
-    --secondary: 222 47% 11%; /* Muted blue */
-    --secondary-foreground: 210 40% 98%;
+    /* iMessage Gray */
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 222.2 84% 4.9%; /* Black text on gray */
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 13% 91%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 262 84% 58%; /* Vibrant Purple */
+    --accent: 217 91% 65%; /* Slightly lighter blue for hover/focus */
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 63% 31%; /* Dark Red */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
 
     --chart-1: 220 70% 50%;

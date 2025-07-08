@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -100,20 +101,32 @@ export default function ClientPage() {
   const handleSendMessage = () => {
     if (!userInput.trim()) return;
 
+    if (messages.some((msg) => msg.isStreaming)) {
+       const newUserMessage: Message = {
+        id: Date.now().toString() + '-user',
+        text: userInput,
+        sender: 'user',
+      };
+      setMessages((prev) => [...prev, newUserMessage]);
+      setUserInput('');
+      return;
+    }
+
     const newUserMessage: Message = {
       id: Date.now().toString() + '-user',
       text: userInput,
       sender: 'user',
     };
 
-    const history = [...messages, newUserMessage]
+    const currentMessages = [...messages, newUserMessage];
+    const history = currentMessages
       .slice(-10)
       .map(({ sender, text }) => ({
         sender: sender === 'ai' ? 'Mahad' : 'user',
         text,
       })) as EmotionalConversationInput['history'];
 
-    setMessages((prev) => [...prev, newUserMessage]);
+    setMessages(currentMessages);
     setUserInput('');
 
     conversationMutation.mutate({
@@ -145,7 +158,7 @@ export default function ClientPage() {
   return (
     <div className="container mx-auto p-4 flex flex-col h-[calc(100vh-2rem)] max-w-3xl">
       <header className="mb-4 text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
           EmotiVerse
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -153,7 +166,7 @@ export default function ClientPage() {
         </p>
       </header>
 
-      <Card className="flex-grow flex flex-col shadow-lg border-0 bg-card/50">
+      <Card className="flex-grow flex flex-col shadow-lg border bg-card">
         <CardHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
@@ -197,9 +210,9 @@ export default function ClientPage() {
                   )}
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-md text-sm leading-relaxed',
+                      'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm text-sm leading-relaxed',
                       msg.sender === 'user'
-                        ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-primary-foreground rounded-br-lg'
+                        ? 'bg-primary text-primary-foreground rounded-br-lg'
                         : 'bg-secondary text-secondary-foreground rounded-bl-lg'
                     )}
                   >
@@ -230,7 +243,7 @@ export default function ClientPage() {
             </div>
           </ScrollArea>
           <div className="mt-auto pt-2">
-            <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-secondary">
+            <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-card border">
               <Textarea
                 ref={textAreaRef}
                 value={userInput}
@@ -247,7 +260,7 @@ export default function ClientPage() {
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={conversationMutation.isPending || !userInput.trim()}
+                disabled={!userInput.trim()}
                 size="icon"
                 className="h-10 w-10 shrink-0 bg-primary hover:bg-primary/90 rounded-full"
               >
