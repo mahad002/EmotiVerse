@@ -29,6 +29,7 @@ import {
   CheckCheck,
   Volume2,
   VolumeX,
+  Mic,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,14 @@ interface Message {
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
+}
+
+// Extend window type for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
 }
 
 export default function ClientPage() {
@@ -53,11 +62,59 @@ export default function ClientPage() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
+
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      setIsSpeechSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        toast({
+          title: 'Speech Recognition Error',
+          description: `An error occurred: ${event.error}. Please check your microphone permissions.`,
+          variant: 'destructive',
+        });
+        setIsRecording(false);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map((result) => result[0])
+          .map((result) => result.transcript)
+          .join('');
+        setUserInput(transcript);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      setIsSpeechSupported(false);
+      console.warn('Speech Recognition not supported in this browser.');
+    }
+  }, [toast]);
 
   const ttsMutation = useMutation({
     mutationFn: textToSpeech,
@@ -68,7 +125,6 @@ export default function ClientPage() {
     },
     onError: (error) => {
       console.error('TTS Error:', error);
-      // We don't show a toast for TTS errors as it would be too noisy.
     },
   });
 
@@ -162,8 +218,16 @@ export default function ClientPage() {
     });
   };
 
+  const handleToggleRecording = () => {
+    if (!isSpeechSupported || !recognitionRef.current) return;
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
+
   useEffect(() => {
-    // Stop any playing audio if the component unmounts or voice is disabled.
     if (!isVoiceEnabled && audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
@@ -190,7 +254,6 @@ export default function ClientPage() {
           })
           .catch((error) => {
             console.error('Audio playback failed:', error);
-            // If autoplay fails, just move on to the next item
             setIsAudioPlaying(false);
             setAudioQueue((prev) => prev.slice(1));
           });
@@ -220,7 +283,7 @@ export default function ClientPage() {
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
-      const maxHeight = 128; // 8rem
+      const maxHeight = 128;
       const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
       textAreaRef.current.style.height = `${newHeight}px`;
     }
@@ -358,6 +421,22 @@ export default function ClientPage() {
                   }
                 }}
               />
+              <Button
+                type="button"
+                onClick={handleToggleRecording}
+                disabled={!isSpeechSupported || conversationMutation.isPending}
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 shrink-0 rounded-full"
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              >
+                <Mic
+                  className={cn(
+                    'h-5 w-5',
+                    isRecording && 'text-primary animate-pulse'
+                  )}
+                />
+              </Button>
               <Button
                 onClick={handleSendMessage}
                 disabled={!userInput.trim()}
