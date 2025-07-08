@@ -9,7 +9,7 @@ body {
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Light Gray background */
+    --background: 0 0% 100%; /* White background */
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%; /* White cards */
@@ -18,18 +18,18 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* iMessage Blue */
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%; /* White text on blue */
+    /* WhatsApp Green for primary actions */
+    --primary: 145 63% 49%;
+    --primary-foreground: 210 40% 98%;
 
-    /* iMessage Gray */
-    --secondary: 220 13% 91%;
-    --secondary-foreground: 222.2 84% 4.9%; /* Black text on gray */
+    /* WhatsApp-like Green for bot messages */
+    --secondary: 96 79% 88%;
+    --secondary-foreground: 222.2 84% 4.9%; /* Black text on green */
 
     --muted: 220 13% 91%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 217 91% 65%; /* Slightly lighter blue for hover/focus */
+    --accent: 145 63% 55%; /* Lighter green for hover/focus */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -37,7 +37,7 @@ body {
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --ring: 217 91% 60%; /* Blue for ticks */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;

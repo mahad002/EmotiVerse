@@ -21,7 +21,7 @@ import {
   emotionalConversation,
   type EmotionalConversationInput,
 } from '@/ai/flows/emotional-conversation';
-import { Loader2, Send, User } from 'lucide-react';
+import { Loader2, Send, User, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -210,9 +210,9 @@ export default function ClientPage() {
                   )}
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm text-sm leading-relaxed',
+                      'relative max-w-[75%] rounded-2xl px-4 py-2 shadow-sm text-sm leading-relaxed border',
                       msg.sender === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-lg'
+                        ? 'bg-card text-card-foreground rounded-br-lg'
                         : 'bg-secondary text-secondary-foreground rounded-bl-lg'
                     )}
                   >
@@ -223,7 +223,12 @@ export default function ClientPage() {
                         <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
                       </div>
                     ) : (
-                      msg.text
+                      <p className="pr-6 whitespace-pre-wrap">{msg.text}</p>
+                    )}
+                     {!msg.isStreaming && msg.text && (
+                      <div className="absolute bottom-1.5 right-2 flex items-center">
+                        <CheckCheck className="h-4 w-4 text-ring" />
+                      </div>
                     )}
                   </div>
                   {msg.sender === 'user' && (
