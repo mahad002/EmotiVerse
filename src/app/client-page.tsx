@@ -11,10 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import {
@@ -30,7 +28,6 @@ import {
   VolumeX,
   Mic,
   MessageCircle,
-  Settings,
   Bot,
   Search,
   MoreVertical,
@@ -367,15 +364,15 @@ export default function ClientPage() {
       <div className="min-h-screen min-h-dvh bg-gray-100">
         <div className="flex flex-col h-screen h-dvh max-w-md mx-auto bg-white shadow-xl">
           {/* Mobile Header */}
-          <header className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-white">
+          <header className="flex-shrink-0 px-4 py-3 whatsapp-header">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-gray-600" />
+                <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-800">EmotiVerse</h1>
-                  <p className="text-xs text-gray-500">AI Conversation</p>
+                  <h1 className="text-lg font-semibold text-white">EmotiVerse</h1>
+                  <p className="text-xs text-gray-300">AI Conversation</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -384,9 +381,9 @@ export default function ClientPage() {
                   size="icon"
                   onClick={() => setIsVoiceEnabled((v) => !v)}
                   className={cn(
-                    "w-9 h-9 rounded-full",
+                    "w-9 h-9 rounded-full text-white hover:bg-gray-600",
                     isVoiceEnabled 
-                      ? "bg-gray-100 text-gray-700" 
+                      ? "bg-gray-600" 
                       : "text-gray-400"
                   )}
                 >
@@ -431,7 +428,7 @@ export default function ClientPage() {
           
           {/* Mobile Messages */}
           <div className="flex-1 flex flex-col min-h-0">
-            <ScrollArea className="flex-1 px-4 whatsapp-bg" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 px-4 whatsapp-chat-bg" ref={scrollAreaRef}>
               <div className="space-y-4 py-4">
                 {messages.map((msg, index) => (
                   <div
@@ -444,17 +441,17 @@ export default function ClientPage() {
                   >
                     {msg.sender === 'ai' && (
                       <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
+                        <AvatarFallback className="bg-gray-600 text-white text-xs">
                           AI
                         </AvatarFallback>
                       </Avatar>
                     )}
                     <div
                       className={cn(
-                        'message-bubble max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm',
+                        'max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm',
                         msg.sender === 'user'
-                          ? 'whatsapp-green-light text-gray-800 user'
-                          : 'bg-white text-gray-800 ai'
+                          ? 'whatsapp-user-bubble text-gray-800'
+                          : 'bg-white text-gray-800'
                       )}
                     >
                       {msg.isStreaming && msg.text.length === 0 ? (
@@ -556,60 +553,58 @@ export default function ClientPage() {
     );
   }
 
-  // Desktop WhatsApp-style Layout
+  // Desktop WhatsApp Web Layout
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <div className="flex h-screen w-full bg-white">
-        {/* Left Sidebar */}
-        <div className="w-80 border-r border-gray-200 flex flex-col bg-white">
+    <div className="h-screen bg-gray-100 flex">
+      <div className="flex h-full w-full bg-white">
+        {/* Left Sidebar - Exact WhatsApp Style */}
+        <div className="w-80 whatsapp-sidebar flex flex-col">
           {/* Sidebar Header */}
-          <div className="p-4 bg-gray-100 border-b border-gray-200">
+          <div className="p-4 whatsapp-header">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-green-500 text-white">
+                  <AvatarFallback className="bg-gray-600 text-white">
                     <User className="w-5 h-5" />
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold text-gray-800">You</h2>
-                  <p className="text-xs text-gray-500">Online</p>
+                  <h2 className="font-semibold text-white">You</h2>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-500">
-                  <Settings className="w-4 h-4" />
-                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsVoiceEnabled((v) => !v)}
                   className={cn(
-                    "w-8 h-8",
-                    isVoiceEnabled ? "text-green-500" : "text-gray-500"
+                    "w-8 h-8 text-gray-400 hover:text-white hover:bg-gray-600",
+                    isVoiceEnabled && "text-white"
                   )}
                 >
                   {isVoiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-400 hover:text-white hover:bg-gray-600">
+                  <MoreVertical className="w-4 h-4" />
                 </Button>
               </div>
             </div>
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
+              <div className="whatsapp-search rounded-lg p-2 flex items-center gap-3">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search or start new chat"
+                  className="bg-transparent text-white placeholder:text-gray-400 text-sm flex-1 outline-none"
+                />
+              </div>
             </div>
           </div>
 
           {/* Persona Selection */}
-          <div className="p-4 border-b border-gray-200">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              AI Personality
-            </label>
+          <div className="px-4 pb-4">
             <Select
               value={selectedPersonaId}
               onValueChange={(value) => {
@@ -621,15 +616,15 @@ export default function ClientPage() {
                 setIsAudioPlaying(false);
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full bg-gray-600 border-gray-500 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-700 border-gray-600">
                 {personas.map((persona) => (
-                  <SelectItem key={persona.id} value={persona.id}>
+                  <SelectItem key={persona.id} value={persona.id} className="text-white hover:bg-gray-600">
                     <div className="flex flex-col">
                       <span className="font-medium">{persona.name}</span>
-                      <span className="text-xs text-gray-500">{persona.description}</span>
+                      <span className="text-xs text-gray-300">{persona.description}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -639,33 +634,31 @@ export default function ClientPage() {
 
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-2">
-              <div className="p-3 hover:bg-gray-50 cursor-pointer bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-12 h-12">
-                    <AvatarFallback className="bg-green-500 text-white">
-                      <Bot className="w-6 h-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-semibold text-gray-800 truncate">
-                        {selectedPersona.name}
-                      </h3>
-                      <span className="text-xs text-gray-500">
-                        {messages.length > 0 && messages[messages.length - 1].timestamp
-                          ? formatTime(messages[messages.length - 1].timestamp!)
-                          : 'Now'
-                        }
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 truncate">
-                      {messages.length > 0 
-                        ? messages[messages.length - 1].text || 'Typing...'
-                        : 'Start a conversation...'
+            <div className="whatsapp-chat-item p-4 cursor-pointer">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-12 h-12">
+                  <AvatarFallback className="bg-gray-600 text-white">
+                    <Bot className="w-6 h-6" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-white truncate">
+                      {selectedPersona.name}
+                    </h3>
+                    <span className="text-xs text-gray-400">
+                      {messages.length > 0 && messages[messages.length - 1].timestamp
+                        ? formatTime(messages[messages.length - 1].timestamp!)
+                        : 'Now'
                       }
-                    </p>
+                    </span>
                   </div>
+                  <p className="text-sm text-gray-400 truncate">
+                    {messages.length > 0 
+                      ? messages[messages.length - 1].text || 'Typing...'
+                      : 'Start a conversation...'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -675,29 +668,29 @@ export default function ClientPage() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
           {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200 bg-gray-100">
+          <div className="p-4 whatsapp-chat-header">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-green-500 text-white">
+                  <AvatarFallback className="bg-gray-600 text-white">
                     <Bot className="w-5 h-5" />
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold text-gray-800">{selectedPersona.name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {conversationMutation.isPending ? 'Typing...' : 'Online'}
+                  <h2 className="font-semibold text-white">{selectedPersona.name}</h2>
+                  <p className="text-sm text-gray-400">
+                    {conversationMutation.isPending ? 'typing...' : 'online'}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500">
+                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
                   <Phone className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500">
+                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
                   <Video className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500">
+                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
                   <MoreVertical className="w-5 h-5" />
                 </Button>
               </div>
@@ -705,7 +698,7 @@ export default function ClientPage() {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 whatsapp-bg overflow-hidden">
+          <div className="flex-1 whatsapp-chat-bg overflow-hidden">
             <ScrollArea className="h-full px-6 py-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                 {messages.map((msg, index) => (
@@ -718,10 +711,10 @@ export default function ClientPage() {
                   >
                     <div
                       className={cn(
-                        'message-bubble max-w-md rounded-lg px-4 py-2 shadow-sm',
+                        'max-w-md rounded-lg px-4 py-2 shadow-sm relative',
                         msg.sender === 'user'
-                          ? 'whatsapp-green-light text-gray-800 user'
-                          : 'bg-white text-gray-800 ai'
+                          ? 'whatsapp-user-bubble text-gray-800'
+                          : 'bg-white text-gray-800'
                       )}
                     >
                       {msg.isStreaming && msg.text.length === 0 ? (
@@ -731,7 +724,7 @@ export default function ClientPage() {
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
                           </div>
-                          <span className="text-gray-500 text-sm">Thinking...</span>
+                          <span className="text-gray-500 text-sm">typing...</span>
                         </div>
                       ) : (
                         <>
@@ -748,10 +741,10 @@ export default function ClientPage() {
                 ))}
                 {messages.length === 0 && (
                   <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
                       <MessageCircle className="w-10 h-10 text-gray-400" />
                     </div>
-                    <h3 className="text-xl font-medium text-gray-800 mb-2">
+                    <h3 className="text-xl font-medium text-gray-700 mb-2">
                       Welcome to EmotiVerse
                     </h3>
                     <p className="text-gray-500 max-w-md mx-auto">
@@ -765,9 +758,12 @@ export default function ClientPage() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-gray-200 bg-white">
-            <div className="flex items-end gap-3 p-3 rounded-lg bg-gray-50">
-              <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500">
+          <div className="p-4 bg-gray-100">
+            <div className="flex items-end gap-3 p-3 rounded-lg bg-white">
+              <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500 hover:text-gray-700">
+                <Smile className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500 hover:text-gray-700">
                 <Paperclip className="w-5 h-5" />
               </Button>
               <div className="flex-1 relative">
@@ -775,8 +771,8 @@ export default function ClientPage() {
                   ref={textAreaRef}
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="resize-none bg-white border border-gray-200 focus-visible:ring-1 focus-visible:ring-green-500 rounded-2xl px-4 py-3 pr-12 max-h-32 text-sm"
+                  placeholder="Type a message"
+                  className="resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-4 py-3 max-h-32 text-sm"
                   rows={1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -785,13 +781,6 @@ export default function ClientPage() {
                     }
                   }}
                 />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 text-gray-500"
-                >
-                  <Smile className="w-4 h-4" />
-                </Button>
               </div>
               {isSpeechSupported && (
                 <Button
@@ -814,7 +803,7 @@ export default function ClientPage() {
                 onClick={handleSendMessage}
                 disabled={!userInput.trim()}
                 size="icon"
-                className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full disabled:opacity-50"
+                className="w-10 h-10 whatsapp-green hover:bg-green-600 text-white rounded-full disabled:opacity-50"
               >
                 {conversationMutation.isPending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
