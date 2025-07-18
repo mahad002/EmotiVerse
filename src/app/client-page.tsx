@@ -17,11 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
-import {
-  emotionalConversation,
-  type EmotionalConversationInput,
-} from '@/ai/flows/emotional-conversation';
-import { textToSpeech } from '@/ai/flows/text-to-speech';
+import { type EmotionalConversationInput } from '@/ai/flows/emotional-conversation';
 import {
   Loader2,
   Send,
@@ -117,7 +113,21 @@ export default function ClientPage() {
   }, [toast]);
 
   const ttsMutation = useMutation({
-    mutationFn: textToSpeech,
+    mutationFn: async (text: string) => {
+      const response = await fetch('/api/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(text),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate speech');
+      }
+      
+      return response.json();
+    },
     onSuccess: (data) => {
       if (data.audioDataUri) {
         setAudioQueue((prev) => [...prev, data.audioDataUri]);
@@ -129,7 +139,21 @@ export default function ClientPage() {
   });
 
   const conversationMutation = useMutation({
-    mutationFn: emotionalConversation,
+    mutationFn: async (input: EmotionalConversationInput) => {
+      const response = await fetch('/api/emotional-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to process conversation');
+      }
+      
+      return response.json();
+    },
     onMutate: async (variables) => {
       const aiMessageId = 'ai-streaming-' + Date.now();
       const newAiMessage: Message = {
