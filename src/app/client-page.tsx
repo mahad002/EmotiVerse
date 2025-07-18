@@ -558,16 +558,16 @@ export default function ClientPage() {
 
   // Desktop WhatsApp-style Layout
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="flex h-screen max-w-7xl mx-auto bg-white shadow-2xl">
+    <div className="min-h-screen bg-gray-100 flex">
+      <div className="flex h-screen w-full bg-white">
         {/* Left Sidebar */}
         <div className="w-80 border-r border-gray-200 flex flex-col bg-white">
           {/* Sidebar Header */}
-          <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="p-4 bg-gray-100 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="whatsapp-green text-white">
+                  <AvatarFallback className="bg-green-500 text-white">
                     <User className="w-5 h-5" />
                   </AvatarFallback>
                 </Avatar>
@@ -586,7 +586,7 @@ export default function ClientPage() {
                   onClick={() => setIsVoiceEnabled((v) => !v)}
                   className={cn(
                     "w-8 h-8",
-                    isVoiceEnabled ? "text-green-600" : "text-gray-500"
+                    isVoiceEnabled ? "text-green-500" : "text-gray-500"
                   )}
                 >
                   {isVoiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -600,7 +600,7 @@ export default function ClientPage() {
               <input
                 type="text"
                 placeholder="Search conversations..."
-                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
               />
             </div>
           </div>
@@ -640,10 +640,10 @@ export default function ClientPage() {
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-2">
-              <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer border-l-4 border-green-500 bg-green-50">
+              <div className="p-3 hover:bg-gray-50 cursor-pointer bg-gray-50">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">
-                    <AvatarFallback className="whatsapp-green text-white">
+                    <AvatarFallback className="bg-green-500 text-white">
                       <Bot className="w-6 h-6" />
                     </AvatarFallback>
                   </Avatar>
@@ -675,11 +675,11 @@ export default function ClientPage() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
           {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="p-4 border-b border-gray-200 bg-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="whatsapp-green text-white">
+                  <AvatarFallback className="bg-green-500 text-white">
                     <Bot className="w-5 h-5" />
                   </AvatarFallback>
                 </Avatar>
@@ -776,7 +776,7 @@ export default function ClientPage() {
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   placeholder="Type a message..."
-                  className="resize-none bg-white border border-gray-200 focus-visible:ring-1 focus-visible:ring-green-500 rounded-lg px-4 py-3 pr-12 max-h-32 text-sm"
+                  className="resize-none bg-white border border-gray-200 focus-visible:ring-1 focus-visible:ring-green-500 rounded-2xl px-4 py-3 pr-12 max-h-32 text-sm"
                   rows={1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -814,7 +814,7 @@ export default function ClientPage() {
                 onClick={handleSendMessage}
                 disabled={!userInput.trim()}
                 size="icon"
-                className="w-10 h-10 whatsapp-green hover:bg-green-600 rounded-full disabled:opacity-50"
+                className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full disabled:opacity-50"
               >
                 {conversationMutation.isPending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
