@@ -1,110 +1,103 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
 body {
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 220 13% 97%; /* Light gray background */
-    --foreground: 222.2 84% 4.9%;
+    --background: 250 250 250; /* Very light gray */
+    --foreground: 15 23 42; /* Slate 800 */
 
-    --card: 0 0% 100%; /* White cards with subtle shadow */
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 255 255 255; /* Pure white */
+    --card-foreground: 15 23 42;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 255 255 255;
+    --popover-foreground: 15 23 42;
 
-    /* Modern purple-blue gradient primary */
-    --primary: 262 83% 58%;
-    --primary-foreground: 210 40% 98%;
+    /* Subtle blue-gray primary */
+    --primary: 100 116 139; /* Slate 500 */
+    --primary-foreground: 248 250 252; /* Slate 50 */
 
-    /* Soft purple for AI messages */
-    --secondary: 262 83% 95%;
-    --secondary-foreground: 262 83% 25%;
+    /* Very light background for AI messages */
+    --secondary: 248 250 252; /* Slate 50 */
+    --secondary-foreground: 71 85 105; /* Slate 600 */
 
-    --muted: 220 13% 95%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 241 245 249; /* Slate 100 */
+    --muted-foreground: 100 116 139; /* Slate 500 */
 
-    --accent: 262 83% 65%; /* Lighter purple for hover/focus */
-    --accent-foreground: 210 40% 98%;
+    --accent: 226 232 240; /* Slate 200 */
+    --accent-foreground: 15 23 42;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 239 68 68; /* Red 500 */
+    --destructive-foreground: 248 250 252;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%; /* Purple for focus rings */
+    --border: 226 232 240; /* Slate 200 */
+    --input: 226 232 240;
+    --ring: 100 116 139; /* Slate 500 */
 
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
     --radius: 0.75rem;
   }
 }
 
 @layer components {
-  .gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  .splash-screen {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    animation: fadeIn 0.8s ease-out;
   }
   
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  .logo-animation {
+    animation: logoFloat 2s ease-in-out infinite;
+  }
+  
+  @keyframes logoFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .slide-up {
+    animation: slideUp 0.6s ease-out;
   }
   
   .message-bubble {
-    position: relative;
-    transform: translateY(0);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease-out;
   }
   
-  .message-bubble:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  .message-bubble:active {
+    transform: scale(0.98);
   }
   
-  .floating-animation {
-    animation: float 6s ease-in-out infinite;
+  .minimal-gradient {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   }
   
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
-  
-  .pulse-ring {
-    animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
-  }
-  
-  @keyframes pulse-ring {
-    0% {
-      transform: scale(0.8);
-      opacity: 1;
-    }
-    100% {
-      transform: scale(2.4);
-      opacity: 0;
-    }
-  }
-  
-  .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  .glass-minimal {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(226, 232, 240, 0.5);
   }
 }
+
 @layer base {
   * {
     @apply border-border;
@@ -112,5 +105,6 @@ body {
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
   }
 }

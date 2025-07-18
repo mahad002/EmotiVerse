@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -27,14 +26,12 @@ import {
   Loader2,
   Send,
   User,
-  CheckCheck,
   Volume2,
   VolumeX,
   Mic,
-  Sparkles,
-  Heart,
-  Zap,
   MessageCircle,
+  Settings,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +52,7 @@ declare global {
 
 export default function ClientPage() {
   const { toast } = useToast();
+  const [showSplash, setShowSplash] = useState(true);
   const [personas] = useState<Persona[]>(defaultPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
     defaultPersonas[0].id
@@ -76,6 +74,14 @@ export default function ClientPage() {
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
+
+  // Splash screen timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -288,219 +294,221 @@ export default function ClientPage() {
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
-      const maxHeight = 128;
+      const maxHeight = 120;
       const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
       textAreaRef.current.style.height = `${newHeight}px`;
     }
   }, [userInput]);
 
-  return (
-    <div className="min-h-screen gradient-bg">
-      <div className="container mx-auto px-4 py-6 flex flex-col h-screen max-w-4xl">
-        <header className="mb-6 text-center flex-shrink-0">
-          <div className="relative inline-block">
-            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white mb-2 floating-animation">
-              <span className="inline-flex items-center gap-3">
-                <Sparkles className="h-12 w-12 text-yellow-300" />
-                EmotiVerse
-                <Heart className="h-10 w-10 text-pink-300" />
-              </span>
-            </h1>
-            <div className="absolute -inset-4 bg-white/10 rounded-full blur-xl -z-10"></div>
+  // Splash Screen
+  if (showSplash) {
+    return (
+      <div className="min-h-screen min-h-dvh splash-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="logo-animation mb-8">
+            <img 
+              src="/image.png" 
+              alt="Inspirovix Technologies" 
+              className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+            />
           </div>
-          <p className="text-white/90 mt-3 text-lg font-medium">
-            Experience meaningful conversations with AI personalities
-          </p>
-          <div className="flex justify-center mt-4 gap-2">
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              <MessageCircle className="h-3 w-3 mr-1" />
-              AI Powered
-            </Badge>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              <Zap className="h-3 w-3 mr-1" />
-              Real-time
-            </Badge>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-slate-800" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+              Inspirovix
+            </h1>
+            <p className="text-xl text-slate-600" style={{ fontFamily: 'MS Thar, serif' }}>
+              Technologies
+            </p>
+          </div>
+          <div className="mt-8">
+            <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen min-h-dvh minimal-gradient">
+      <div className="flex flex-col h-screen h-dvh max-w-md mx-auto bg-white shadow-xl">
+        {/* Header */}
+        <header className="flex-shrink-0 px-4 py-3 border-b border-slate-200 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                <Bot className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-slate-800">EmotiVerse</h1>
+                <p className="text-xs text-slate-500">AI Conversation</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsVoiceEnabled((v) => !v)}
+                className={cn(
+                  "w-9 h-9 rounded-full",
+                  isVoiceEnabled 
+                    ? "bg-slate-100 text-slate-700" 
+                    : "text-slate-400"
+                )}
+              >
+                {isVoiceEnabled ? (
+                  <Volume2 className="w-4 h-4" />
+                ) : (
+                  <VolumeX className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </header>
 
-        <Card className="flex-1 flex flex-col shadow-2xl border-0 glass-effect backdrop-blur-xl min-h-0 overflow-hidden">
-          <CardHeader className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Chat with Mahad
-              </CardTitle>
-              <div className="flex items-center gap-3">
-                <div className="w-56">
-                  <Select
-                    value={selectedPersonaId}
-                    onValueChange={(value) => {
-                      setSelectedPersonaId(value);
-                      if (audioRef.current) {
-                        audioRef.current.pause();
-                      }
-                      setAudioQueue([]);
-                      setIsAudioPlaying(false);
-                    }}
-                  >
-                    <SelectTrigger className="h-10 text-sm bg-white/50 border-white/20 hover:bg-white/70 transition-all">
-                      <SelectValue placeholder="Choose personality..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white/95 backdrop-blur-xl border-white/20">
-                      {personas.map((persona) => (
-                        <SelectItem key={persona.id} value={persona.id} className="hover:bg-purple-50">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{persona.name}</span>
-                            <span className="text-xs text-muted-foreground">{persona.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsVoiceEnabled((v) => !v)}
+        {/* Persona Selection */}
+        <div className="flex-shrink-0 px-4 py-3 bg-slate-50 border-b border-slate-200">
+          <Select
+            value={selectedPersonaId}
+            onValueChange={(value) => {
+              setSelectedPersonaId(value);
+              if (audioRef.current) {
+                audioRef.current.pause();
+              }
+              setAudioQueue([]);
+              setIsAudioPlaying(false);
+            }}
+          >
+            <SelectTrigger className="w-full h-10 bg-white border-slate-200">
+              <SelectValue placeholder="Choose personality..." />
+            </SelectTrigger>
+            <SelectContent className="bg-white border-slate-200">
+              {personas.map((persona) => (
+                <SelectItem key={persona.id} value={persona.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-800">{persona.name}</span>
+                    <span className="text-xs text-slate-500">{persona.description}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Messages */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
+            <div className="space-y-4 py-4">
+              {messages.map((msg, index) => (
+                <div
+                  key={msg.id}
                   className={cn(
-                    "h-10 w-10 rounded-full transition-all duration-300",
-                    isVoiceEnabled 
-                      ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" 
-                      : "bg-white/20 text-white/70 hover:bg-white/30"
+                    'flex items-end gap-2 slide-up',
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
                   )}
-                  aria-label={isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  {isVoiceEnabled ? (
-                    <Volume2 className="h-5 w-5" />
-                  ) : (
-                    <VolumeX className="h-5 w-5" />
+                  {msg.sender === 'ai' && (
+                    <Avatar className="w-8 h-8 flex-shrink-0">
+                      <AvatarFallback className="bg-slate-100 text-slate-600 text-xs">
+                        AI
+                      </AvatarFallback>
+                    </Avatar>
                   )}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="flex-grow flex flex-col overflow-hidden p-0">
-            <ScrollArea className="flex-grow px-6" ref={scrollAreaRef}>
-              <div className="space-y-6 py-6">
-                {messages.map((msg, index) => (
                   <div
-                    key={msg.id}
                     className={cn(
-                      'flex items-end gap-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full',
-                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                      'message-bubble max-w-[80%] rounded-2xl px-3 py-2 text-sm',
+                      msg.sender === 'user'
+                        ? 'bg-slate-800 text-white rounded-br-md'
+                        : 'bg-slate-100 text-slate-800 rounded-bl-md'
                     )}
-                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    {msg.sender === 'ai' && (
-                      <Avatar className="h-10 w-10 ring-2 ring-purple-200 ring-offset-2">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold">
-                          M
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div
-                      className={cn(
-                        'message-bubble relative max-w-[80%] rounded-2xl px-5 py-3 shadow-lg text-sm leading-relaxed',
-                        msg.sender === 'user'
-                          ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-br-md'
-                          : 'bg-white border border-purple-100 text-gray-800 rounded-bl-md'
-                      )}
-                    >
-                      {msg.isStreaming && msg.text.length === 0 ? (
-                        <div className="flex items-center space-x-2 py-2">
-                          <div className="flex space-x-1">
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce"></div>
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-75"></div>
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-150"></div>
-                          </div>
-                          <span className="text-purple-600 text-xs">Mahad is thinking...</span>
+                    {msg.isStreaming && msg.text.length === 0 ? (
+                      <div className="flex items-center space-x-1 py-1">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75"></div>
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150"></div>
                         </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{msg.text}</p>
-                      )}
-                      {!msg.isStreaming && msg.text && msg.sender === 'user' && (
-                        <div className="absolute -bottom-1 -right-1 flex items-center">
-                          <CheckCheck className="h-4 w-4 text-white/80" />
-                        </div>
-                      )}
-                    </div>
-                    {msg.sender === 'user' && (
-                      <Avatar className="h-10 w-10 ring-2 ring-blue-200 ring-offset-2">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                          <User className="h-5 w-5" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
-                {messages.length === 0 && (
-                  <div className="text-center py-16">
-                    <div className="mb-6">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-blue-100 mb-4">
-                        <MessageCircle className="h-10 w-10 text-purple-500" />
+                        <span className="text-slate-500 text-xs ml-2">Thinking...</span>
                       </div>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                      Start Your Conversation
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      Choose a personality above and begin chatting with Mahad. Each persona offers a unique conversational experience.
-                    </p>
+                    ) : (
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                    )}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-            
-            <div className="p-6 border-t border-white/10 bg-gradient-to-r from-white/5 to-white/10">
-              <div className="flex items-end gap-3 p-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
-                <Textarea
-                  ref={textAreaRef}
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Type your message to Mahad..."
-                  className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32 placeholder:text-gray-500"
-                  rows={1}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
+                  {msg.sender === 'user' && (
+                    <Avatar className="w-8 h-8 flex-shrink-0">
+                      <AvatarFallback className="bg-slate-800 text-white text-xs">
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))}
+              {messages.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-slate-800 mb-2">
+                    Start Chatting
+                  </h3>
+                  <p className="text-slate-500 text-sm px-8">
+                    Choose a personality and begin your conversation with Mahad
+                  </p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          
+          {/* Input Area */}
+          <div className="flex-shrink-0 p-4 border-t border-slate-200 bg-white">
+            <div className="flex items-end gap-2 p-2 rounded-2xl bg-slate-50 border border-slate-200">
+              <Textarea
+                ref={textAreaRef}
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-24 text-sm placeholder:text-slate-400"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              {isSpeechSupported && (
                 <Button
                   type="button"
                   onClick={handleToggleRecording}
-                  disabled={!isSpeechSupported || conversationMutation.isPending}
+                  disabled={conversationMutation.isPending}
                   size="icon"
                   variant="ghost"
                   className={cn(
-                    "h-12 w-12 shrink-0 rounded-full transition-all duration-300",
+                    "w-10 h-10 flex-shrink-0 rounded-full",
                     isRecording 
-                      ? "bg-red-500/20 text-red-600 pulse-ring" 
-                      : "hover:bg-purple-100 text-purple-600"
+                      ? "bg-red-100 text-red-600" 
+                      : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                   )}
-                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                 >
-                  <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
+                  <Mic className={cn("w-4 h-4", isRecording && "animate-pulse")} />
                 </Button>
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!userInput.trim()}
-                  size="icon"
-                  className="h-12 w-12 shrink-0 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  {conversationMutation.isPending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
-                  <span className="sr-only">Send</span>
-                </Button>
-              </div>
+              )}
+              <Button
+                onClick={handleSendMessage}
+                disabled={!userInput.trim()}
+                size="icon"
+                className="w-10 h-10 flex-shrink-0 bg-slate-800 hover:bg-slate-700 rounded-full disabled:opacity-50"
+              >
+                {conversationMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-
+          </div>
+        </div>
       </div>
     </div>
   );
