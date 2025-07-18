@@ -500,7 +500,6 @@ export default function ClientPage() {
             </div>
           </CardContent>
         </Card>
-      </header>
 
       </div>
     </div>
