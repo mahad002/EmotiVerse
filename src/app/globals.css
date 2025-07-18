@@ -9,27 +9,27 @@ body {
 
 @layer base {
   :root {
-    --background: 220 13% 97%; /* Light gray background */
+    --background: 0 0% 100%; /* White background */
     --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%; /* White cards with subtle shadow */
+    --card: 0 0% 100%; /* White cards */
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Modern purple-blue gradient primary */
-    --primary: 262 83% 58%;
+    /* WhatsApp Green for primary actions */
+    --primary: 145 63% 49%;
     --primary-foreground: 210 40% 98%;
 
-    /* Soft purple for AI messages */
-    --secondary: 262 83% 95%;
-    --secondary-foreground: 262 83% 25%;
+    /* WhatsApp-like Green for bot messages */
+    --secondary: 96 79% 88%;
+    --secondary-foreground: 222.2 84% 4.9%; /* Black text on green */
 
-    --muted: 220 13% 95%;
+    --muted: 220 13% 91%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 262 83% 65%; /* Lighter purple for hover/focus */
+    --accent: 145 63% 55%; /* Lighter green for hover/focus */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -37,7 +37,7 @@ body {
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%; /* Purple for focus rings */
+    --ring: 217 91% 60%; /* Blue for ticks */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -48,63 +48,6 @@ body {
   }
 }
 
-@layer components {
-  .gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-  
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  .message-bubble {
-    position: relative;
-    transform: translateY(0);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .message-bubble:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  }
-  
-  .floating-animation {
-    animation: float 6s ease-in-out infinite;
-  }
-  
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
-  
-  .pulse-ring {
-    animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
-  }
-  
-  @keyframes pulse-ring {
-    0% {
-      transform: scale(0.8);
-      opacity: 1;
-    }
-    100% {
-      transform: scale(2.4);
-      opacity: 0;
-    }
-  }
-  
-  .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-}
 @layer base {
   * {
     @apply border-border;

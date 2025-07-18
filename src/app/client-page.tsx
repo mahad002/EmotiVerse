@@ -15,7 +15,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import {
@@ -31,10 +30,6 @@ import {
   Volume2,
   VolumeX,
   Mic,
-  Sparkles,
-  Heart,
-  Zap,
-  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -295,214 +290,170 @@ export default function ClientPage() {
   }, [userInput]);
 
   return (
-    <div className="min-h-screen gradient-bg">
-      <div className="container mx-auto px-4 py-6 flex flex-col h-screen max-w-4xl">
-        <header className="mb-6 text-center flex-shrink-0">
-          <div className="relative inline-block">
-            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white mb-2 floating-animation">
-              <span className="inline-flex items-center gap-3">
-                <Sparkles className="h-12 w-12 text-yellow-300" />
-                EmotiVerse
-                <Heart className="h-10 w-10 text-pink-300" />
-              </span>
-            </h1>
-            <div className="absolute -inset-4 bg-white/10 rounded-full blur-xl -z-10"></div>
-          </div>
-          <p className="text-white/90 mt-3 text-lg font-medium">
-            Experience meaningful conversations with AI personalities
-          </p>
-          <div className="flex justify-center mt-4 gap-2">
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              <MessageCircle className="h-3 w-3 mr-1" />
-              AI Powered
-            </Badge>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              <Zap className="h-3 w-3 mr-1" />
-              Real-time
-            </Badge>
-          </div>
-        </header>
-
-        <Card className="flex-1 flex flex-col shadow-2xl border-0 glass-effect backdrop-blur-xl min-h-0 overflow-hidden">
-          <CardHeader className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Chat with Mahad
-              </CardTitle>
-              <div className="flex items-center gap-3">
-                <div className="w-56">
-                  <Select
-                    value={selectedPersonaId}
-                    onValueChange={(value) => {
-                      setSelectedPersonaId(value);
-                      if (audioRef.current) {
-                        audioRef.current.pause();
-                      }
-                      setAudioQueue([]);
-                      setIsAudioPlaying(false);
-                    }}
-                  >
-                    <SelectTrigger className="h-10 text-sm bg-white/50 border-white/20 hover:bg-white/70 transition-all">
-                      <SelectValue placeholder="Choose personality..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white/95 backdrop-blur-xl border-white/20">
-                      {personas.map((persona) => (
-                        <SelectItem key={persona.id} value={persona.id} className="hover:bg-purple-50">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{persona.name}</span>
-                            <span className="text-xs text-muted-foreground">{persona.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsVoiceEnabled((v) => !v)}
-                  className={cn(
-                    "h-10 w-10 rounded-full transition-all duration-300",
-                    isVoiceEnabled 
-                      ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" 
-                      : "bg-white/20 text-white/70 hover:bg-white/30"
-                  )}
-                  aria-label={isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'}
-                >
-                  {isVoiceEnabled ? (
-                    <Volume2 className="h-5 w-5" />
-                  ) : (
-                    <VolumeX className="h-5 w-5" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="flex-grow flex flex-col overflow-hidden p-0">
-            <ScrollArea className="flex-grow px-6" ref={scrollAreaRef}>
-              <div className="space-y-6 py-6">
-                {messages.map((msg, index) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      'flex items-end gap-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full',
-                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    {msg.sender === 'ai' && (
-                      <Avatar className="h-10 w-10 ring-2 ring-purple-200 ring-offset-2">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold">
-                          M
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div
-                      className={cn(
-                        'message-bubble relative max-w-[80%] rounded-2xl px-5 py-3 shadow-lg text-sm leading-relaxed',
-                        msg.sender === 'user'
-                          ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-br-md'
-                          : 'bg-white border border-purple-100 text-gray-800 rounded-bl-md'
-                      )}
-                    >
-                      {msg.isStreaming && msg.text.length === 0 ? (
-                        <div className="flex items-center space-x-2 py-2">
-                          <div className="flex space-x-1">
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce"></div>
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-75"></div>
-                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-150"></div>
-                          </div>
-                          <span className="text-purple-600 text-xs">Mahad is thinking...</span>
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{msg.text}</p>
-                      )}
-                      {!msg.isStreaming && msg.text && msg.sender === 'user' && (
-                        <div className="absolute -bottom-1 -right-1 flex items-center">
-                          <CheckCheck className="h-4 w-4 text-white/80" />
-                        </div>
-                      )}
-                    </div>
-                    {msg.sender === 'user' && (
-                      <Avatar className="h-10 w-10 ring-2 ring-blue-200 ring-offset-2">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                          <User className="h-5 w-5" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
-                {messages.length === 0 && (
-                  <div className="text-center py-16">
-                    <div className="mb-6">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-blue-100 mb-4">
-                        <MessageCircle className="h-10 w-10 text-purple-500" />
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                      Start Your Conversation
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      Choose a personality above and begin chatting with Mahad. Each persona offers a unique conversational experience.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-            
-            <div className="p-6 border-t border-white/10 bg-gradient-to-r from-white/5 to-white/10">
-              <div className="flex items-end gap-3 p-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
-                <Textarea
-                  ref={textAreaRef}
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Type your message to Mahad..."
-                  className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32 placeholder:text-gray-500"
-                  rows={1}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  onClick={handleToggleRecording}
-                  disabled={!isSpeechSupported || conversationMutation.isPending}
-                  size="icon"
-                  variant="ghost"
-                  className={cn(
-                    "h-12 w-12 shrink-0 rounded-full transition-all duration-300",
-                    isRecording 
-                      ? "bg-red-500/20 text-red-600 pulse-ring" 
-                      : "hover:bg-purple-100 text-purple-600"
-                  )}
-                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-                >
-                  <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
-                </Button>
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!userInput.trim()}
-                  size="icon"
-                  className="h-12 w-12 shrink-0 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  {conversationMutation.isPending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
-                  <span className="sr-only">Send</span>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
+      <header className="mb-4 text-center flex-shrink-0">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
+          EmotiVerse
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Explore conversations with AI.
+        </p>
       </header>
 
-      </div>
+      <Card className="flex-1 flex flex-col shadow-lg border bg-card min-h-0">
+        <CardHeader className="p-4 border-b">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="w-48">
+                <Select
+                  value={selectedPersonaId}
+                  onValueChange={(value) => {
+                    setSelectedPersonaId(value);
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                    }
+                    setAudioQueue([]);
+                    setIsAudioPlaying(false);
+                  }}
+                >
+                  <SelectTrigger
+                    id="persona-select"
+                    className="h-9 text-xs"
+                  >
+                    <SelectValue placeholder="Select a persona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {personas.map((persona) => (
+                      <SelectItem key={persona.id} value={persona.id}>
+                        {persona.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsVoiceEnabled((v) => !v)}
+                className="h-9 w-9"
+                aria-label={
+                  isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'
+                }
+              >
+                {isVoiceEnabled ? (
+                  <Volume2 className="h-5 w-5" />
+                ) : (
+                  <VolumeX className="h-5 w-5 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col overflow-hidden p-2 sm:p-4 sm:pt-0">
+          <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
+            <div className="space-y-4 py-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full',
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  )}
+                >
+                  {msg.sender === 'ai' && (
+                    <Avatar className="h-8 w-8 self-start">
+                      <AvatarFallback>M</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div
+                    className={cn(
+                      'relative max-w-[75%] rounded-2xl px-4 py-2 shadow-sm text-sm leading-relaxed border',
+                      msg.sender === 'user'
+                        ? 'bg-card text-card-foreground rounded-br-lg'
+                        : 'bg-secondary text-secondary-foreground rounded-bl-lg'
+                    )}
+                  >
+                    {msg.isStreaming && msg.text.length === 0 ? (
+                      <div className="flex items-center space-x-1 py-1">
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
+                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
+                      </div>
+                    ) : (
+                      <p className="pr-6 whitespace-pre-wrap">{msg.text}</p>
+                    )}
+                     {!msg.isStreaming && msg.text && (
+                      <div className="absolute bottom-1.5 right-2 flex items-center">
+                        <CheckCheck className="h-4 w-4 text-ring" />
+                      </div>
+                    )}
+                  </div>
+                  {msg.sender === 'user' && (
+                    <Avatar className="h-8 w-8 self-start">
+                      <AvatarFallback className="bg-transparent">
+                        <User className="h-5 w-5 text-primary" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))}
+              {messages.length === 0 && (
+                <div className="text-center text-muted-foreground py-10">
+                  <p>Select a persona and start the conversation.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="mt-auto pt-2">
+            <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-card border">
+              <Textarea
+                ref={textAreaRef}
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Message Mahad..."
+                className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                onClick={handleToggleRecording}
+                disabled={!isSpeechSupported || conversationMutation.isPending}
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 shrink-0 rounded-full"
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              >
+                <Mic
+                  className={cn(
+                    'h-5 w-5',
+                    isRecording && 'text-primary animate-pulse'
+                  )}
+                />
+              </Button>
+              <Button
+                onClick={handleSendMessage}
+                disabled={!userInput.trim()}
+                size="icon"
+                className="h-10 w-10 shrink-0 bg-primary hover:bg-primary/90 rounded-full"
+              >
+                {conversationMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+                <span className="sr-only">Send</span>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
