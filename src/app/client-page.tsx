@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import {
@@ -24,18 +27,14 @@ import {
   Loader2,
   Send,
   User,
+  CheckCheck,
   Volume2,
   VolumeX,
   Mic,
+  Sparkles,
+  Heart,
+  Zap,
   MessageCircle,
-  Bot,
-  Search,
-  MoreVertical,
-  Phone,
-  Video,
-  Paperclip,
-  Smile,
-  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +43,6 @@ interface Message {
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
-  timestamp?: Date;
 }
 
 // Extend window type for SpeechRecognition
@@ -57,7 +55,6 @@ declare global {
 
 export default function ClientPage() {
   const { toast } = useToast();
-  const [showSplash, setShowSplash] = useState(true);
   const [personas] = useState<Persona[]>(defaultPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
     defaultPersonas[0].id
@@ -79,27 +76,6 @@ export default function ClientPage() {
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
-
-  // Check if it's mobile
-  const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Splash screen timer
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -166,7 +142,6 @@ export default function ClientPage() {
         text: '',
         sender: 'ai',
         isStreaming: true,
-        timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newAiMessage]);
       return { aiMessageId };
@@ -188,7 +163,6 @@ export default function ClientPage() {
           id: 'ai-' + Date.now() + '-' + Math.random(),
           text: chunk,
           sender: 'ai',
-          timestamp: new Date(),
         };
         setMessages((prev) => [...prev, newAiMessage]);
 
@@ -219,7 +193,6 @@ export default function ClientPage() {
         id: Date.now().toString() + '-user',
         text: userInput,
         sender: 'user',
-        timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newUserMessage]);
       setUserInput('');
@@ -230,7 +203,6 @@ export default function ClientPage() {
       id: Date.now().toString() + '-user',
       text: userInput,
       sender: 'user',
-      timestamp: new Date(),
     };
 
     const currentMessages = [...messages, newUserMessage];
@@ -316,463 +288,177 @@ export default function ClientPage() {
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
-      const maxHeight = 120;
+      const maxHeight = 128;
       const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
       textAreaRef.current.style.height = `${newHeight}px`;
     }
   }, [userInput]);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
-
-  // Splash Screen
-  if (showSplash) {
-    return (
-      <div className="min-h-screen min-h-dvh splash-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="logo-animation mb-8">
-            <img 
-              src="/image.png" 
-              alt="Inspirovix Technologies" 
-              className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
-            />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-slate-800" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-              Inspirovix
+  return (
+    <div className="min-h-screen gradient-bg">
+      <div className="container mx-auto px-4 py-6 flex flex-col h-screen max-w-4xl">
+        <header className="mb-6 text-center flex-shrink-0">
+          <div className="relative inline-block">
+            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white mb-2 floating-animation">
+              <span className="inline-flex items-center gap-3">
+                <Sparkles className="h-12 w-12 text-yellow-300" />
+                EmotiVerse
+                <Heart className="h-10 w-10 text-pink-300" />
+              </span>
             </h1>
-            <p className="text-xl text-slate-600" style={{ fontFamily: 'MS Thar, serif' }}>
-              Technologies
-            </p>
+            <div className="absolute -inset-4 bg-white/10 rounded-full blur-xl -z-10"></div>
           </div>
-          <div className="mt-8">
-            <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto"></div>
+          <p className="text-white/90 mt-3 text-lg font-medium">
+            Experience meaningful conversations with AI personalities
+          </p>
+          <div className="flex justify-center mt-4 gap-2">
+            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+              <MessageCircle className="h-3 w-3 mr-1" />
+              AI Powered
+            </Badge>
+            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+              <Zap className="h-3 w-3 mr-1" />
+              Real-time
+            </Badge>
           </div>
-        </div>
-      </div>
-    );
-  }
+        </header>
 
-  // Mobile Layout
-  if (isMobile) {
-    return (
-      <div className="min-h-screen min-h-dvh bg-gray-100">
-        <div className="flex flex-col h-screen h-dvh max-w-md mx-auto bg-white shadow-xl">
-          {/* Mobile Header */}
-          <header className="flex-shrink-0 px-4 py-3 whatsapp-header">
-            <div className="flex items-center justify-between">
+        <Card className="flex-1 flex flex-col shadow-2xl border-0 glass-effect backdrop-blur-xl min-h-0 overflow-hidden">
+          <CardHeader className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Chat with Mahad
+              </CardTitle>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-white" />
+                <div className="w-56">
+                  <Select
+                    value={selectedPersonaId}
+                    onValueChange={(value) => {
+                      setSelectedPersonaId(value);
+                      if (audioRef.current) {
+                        audioRef.current.pause();
+                      }
+                      setAudioQueue([]);
+                      setIsAudioPlaying(false);
+                    }}
+                  >
+                    <SelectTrigger className="h-10 text-sm bg-white/50 border-white/20 hover:bg-white/70 transition-all">
+                      <SelectValue placeholder="Choose personality..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white/95 backdrop-blur-xl border-white/20">
+                      {personas.map((persona) => (
+                        <SelectItem key={persona.id} value={persona.id} className="hover:bg-purple-50">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{persona.name}</span>
+                            <span className="text-xs text-muted-foreground">{persona.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div>
-                  <h1 className="text-lg font-semibold text-white">EmotiVerse</h1>
-                  <p className="text-xs text-gray-300">AI Conversation</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsVoiceEnabled((v) => !v)}
                   className={cn(
-                    "w-9 h-9 rounded-full text-white hover:bg-gray-600",
+                    "h-10 w-10 rounded-full transition-all duration-300",
                     isVoiceEnabled 
-                      ? "bg-gray-600" 
-                      : "text-gray-400"
+                      ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" 
+                      : "bg-white/20 text-white/70 hover:bg-white/30"
                   )}
+                  aria-label={isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'}
                 >
                   {isVoiceEnabled ? (
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="h-5 w-5" />
                   ) : (
-                    <VolumeX className="w-4 h-4" />
+                    <VolumeX className="h-5 w-5" />
                   )}
                 </Button>
               </div>
             </div>
-          </header>
-
-          {/* Mobile Persona Selection */}
-          <div className="flex-shrink-0 px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <Select
-              value={selectedPersonaId}
-              onValueChange={(value) => {
-                setSelectedPersonaId(value);
-                if (audioRef.current) {
-                  audioRef.current.pause();
-                }
-                setAudioQueue([]);
-                setIsAudioPlaying(false);
-              }}
-            >
-              <SelectTrigger className="w-full h-10 bg-white border-gray-200">
-                <SelectValue placeholder="Choose personality..." />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-gray-200">
-                {personas.map((persona) => (
-                  <SelectItem key={persona.id} value={persona.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-800">{persona.name}</span>
-                      <span className="text-xs text-gray-500">{persona.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          </CardHeader>
           
-          {/* Mobile Messages */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <ScrollArea className="flex-1 px-4 whatsapp-chat-bg" ref={scrollAreaRef}>
-              <div className="space-y-4 py-4">
+          <CardContent className="flex-grow flex flex-col overflow-hidden p-0">
+            <ScrollArea className="flex-grow px-6" ref={scrollAreaRef}>
+              <div className="space-y-6 py-6">
                 {messages.map((msg, index) => (
                   <div
                     key={msg.id}
                     className={cn(
-                      'flex items-end gap-2 slide-up',
+                      'flex items-end gap-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full',
                       msg.sender === 'user' ? 'justify-end' : 'justify-start'
                     )}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
                     {msg.sender === 'ai' && (
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarFallback className="bg-gray-600 text-white text-xs">
-                          AI
+                      <Avatar className="h-10 w-10 ring-2 ring-purple-200 ring-offset-2">
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold">
+                          M
                         </AvatarFallback>
                       </Avatar>
                     )}
                     <div
                       className={cn(
-                        'max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm',
+                        'message-bubble relative max-w-[80%] rounded-2xl px-5 py-3 shadow-lg text-sm leading-relaxed',
                         msg.sender === 'user'
-                          ? 'whatsapp-user-bubble text-gray-800'
-                          : 'bg-white text-gray-800'
-                      )}
-                    >
-                      {msg.isStreaming && msg.text.length === 0 ? (
-                        <div className="flex items-center space-x-1 py-1">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
-                          </div>
-                          <span className="text-gray-500 text-xs ml-2">Thinking...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                          {msg.timestamp && (
-                            <div className="text-xs text-gray-500 mt-1 text-right">
-                              {formatTime(msg.timestamp)}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {msg.sender === 'user' && (
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarFallback className="bg-gray-800 text-white text-xs">
-                          <User className="w-4 h-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
-                {messages.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MessageCircle className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-800 mb-2">
-                      Start Chatting
-                    </h3>
-                    <p className="text-gray-500 text-sm px-8">
-                      Choose a personality and begin your conversation with Mahad
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-            
-            {/* Mobile Input Area */}
-            <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
-              <div className="flex items-end gap-2 p-2 rounded-2xl bg-gray-50 border border-gray-200">
-                <Textarea
-                  ref={textAreaRef}
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-24 text-sm placeholder:text-gray-400"
-                  rows={1}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
-                {isSpeechSupported && (
-                  <Button
-                    type="button"
-                    onClick={handleToggleRecording}
-                    disabled={conversationMutation.isPending}
-                    size="icon"
-                    variant="ghost"
-                    className={cn(
-                      "w-10 h-10 flex-shrink-0 rounded-full",
-                      isRecording 
-                        ? "bg-red-100 text-red-600" 
-                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                    )}
-                  >
-                    <Mic className={cn("w-4 h-4", isRecording && "animate-pulse")} />
-                  </Button>
-                )}
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!userInput.trim()}
-                  size="icon"
-                  className="w-10 h-10 flex-shrink-0 whatsapp-green hover:bg-green-600 rounded-full disabled:opacity-50"
-                >
-                  {conversationMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Desktop WhatsApp Web Layout
-  return (
-    <div className="h-screen bg-gray-100 flex">
-      <div className="flex h-full w-full bg-white">
-        {/* Left Sidebar - Exact WhatsApp Style */}
-        <div className="w-80 whatsapp-sidebar flex flex-col">
-          {/* Sidebar Header */}
-          <div className="p-4 whatsapp-header">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gray-600 text-white">
-                    <User className="w-5 h-5" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-semibold text-white">You</h2>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsVoiceEnabled((v) => !v)}
-                  className={cn(
-                    "w-8 h-8 text-gray-400 hover:text-white hover:bg-gray-600",
-                    isVoiceEnabled && "text-white"
-                  )}
-                >
-                  {isVoiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                </Button>
-                <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-400 hover:text-white hover:bg-gray-600">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            
-            {/* Search */}
-            <div className="relative">
-              <div className="whatsapp-search rounded-lg p-2 flex items-center gap-3">
-                <Search className="w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search or start new chat"
-                  className="bg-transparent text-white placeholder:text-gray-400 text-sm flex-1 outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Persona Selection */}
-          <div className="px-4 pb-4">
-            <Select
-              value={selectedPersonaId}
-              onValueChange={(value) => {
-                setSelectedPersonaId(value);
-                if (audioRef.current) {
-                  audioRef.current.pause();
-                }
-                setAudioQueue([]);
-                setIsAudioPlaying(false);
-              }}
-            >
-              <SelectTrigger className="w-full bg-gray-600 border-gray-500 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-700 border-gray-600">
-                {personas.map((persona) => (
-                  <SelectItem key={persona.id} value={persona.id} className="text-white hover:bg-gray-600">
-                    <div className="flex flex-col">
-                      <span className="font-medium">{persona.name}</span>
-                      <span className="text-xs text-gray-300">{persona.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Chat List */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="whatsapp-chat-item p-4 cursor-pointer">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-12 h-12">
-                  <AvatarFallback className="bg-gray-600 text-white">
-                    <Bot className="w-6 h-6" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-white truncate">
-                      {selectedPersona.name}
-                    </h3>
-                    <span className="text-xs text-gray-400">
-                      {messages.length > 0 && messages[messages.length - 1].timestamp
-                        ? formatTime(messages[messages.length - 1].timestamp!)
-                        : 'Now'
-                      }
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 truncate">
-                    {messages.length > 0 
-                      ? messages[messages.length - 1].text || 'Typing...'
-                      : 'Start a conversation...'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Chat Header */}
-          <div className="p-4 whatsapp-chat-header">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gray-600 text-white">
-                    <Bot className="w-5 h-5" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-semibold text-white">{selectedPersona.name}</h2>
-                  <p className="text-sm text-gray-400">
-                    {conversationMutation.isPending ? 'typing...' : 'online'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
-                  <Phone className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
-                  <Video className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-400 hover:text-white hover:bg-gray-600">
-                  <MoreVertical className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 whatsapp-chat-bg overflow-hidden">
-            <ScrollArea className="h-full px-6 py-4" ref={scrollAreaRef}>
-              <div className="space-y-4">
-                {messages.map((msg, index) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      'flex',
-                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'max-w-md rounded-lg px-4 py-2 shadow-sm relative',
-                        msg.sender === 'user'
-                          ? 'whatsapp-user-bubble text-gray-800'
-                          : 'bg-white text-gray-800'
+                          ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-br-md'
+                          : 'bg-white border border-purple-100 text-gray-800 rounded-bl-md'
                       )}
                     >
                       {msg.isStreaming && msg.text.length === 0 ? (
                         <div className="flex items-center space-x-2 py-2">
                           <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce"></div>
+                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-75"></div>
+                            <div className="h-2 w-2 bg-purple-400 rounded-full animate-bounce delay-150"></div>
                           </div>
-                          <span className="text-gray-500 text-sm">typing...</span>
+                          <span className="text-purple-600 text-xs">Mahad is thinking...</span>
                         </div>
                       ) : (
-                        <>
-                          <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                          {msg.timestamp && (
-                            <div className="text-xs text-gray-500 mt-1 text-right">
-                              {formatTime(msg.timestamp)}
-                            </div>
-                          )}
-                        </>
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                      )}
+                      {!msg.isStreaming && msg.text && msg.sender === 'user' && (
+                        <div className="absolute -bottom-1 -right-1 flex items-center">
+                          <CheckCheck className="h-4 w-4 text-white/80" />
+                        </div>
                       )}
                     </div>
+                    {msg.sender === 'user' && (
+                      <Avatar className="h-10 w-10 ring-2 ring-blue-200 ring-offset-2">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                          <User className="h-5 w-5" />
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 ))}
                 {messages.length === 0 && (
-                  <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                      <MessageCircle className="w-10 h-10 text-gray-400" />
+                  <div className="text-center py-16">
+                    <div className="mb-6">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-blue-100 mb-4">
+                        <MessageCircle className="h-10 w-10 text-purple-500" />
+                      </div>
                     </div>
-                    <h3 className="text-xl font-medium text-gray-700 mb-2">
-                      Welcome to EmotiVerse
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                      Start Your Conversation
                     </h3>
                     <p className="text-gray-500 max-w-md mx-auto">
-                      Start a conversation with {selectedPersona.name}. 
-                      {selectedPersona.description}
+                      Choose a personality above and begin chatting with Mahad. Each persona offers a unique conversational experience.
                     </p>
                   </div>
                 )}
               </div>
             </ScrollArea>
-          </div>
-
-          {/* Input Area */}
-          <div className="p-4 bg-gray-100">
-            <div className="flex items-end gap-3 p-3 rounded-lg bg-white">
-              <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500 hover:text-gray-700">
-                <Smile className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="w-10 h-10 text-gray-500 hover:text-gray-700">
-                <Paperclip className="w-5 h-5" />
-              </Button>
-              <div className="flex-1 relative">
+            
+            <div className="p-6 border-t border-white/10 bg-gradient-to-r from-white/5 to-white/10">
+              <div className="flex items-end gap-3 p-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
                 <Textarea
                   ref={textAreaRef}
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Type a message"
-                  className="resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-4 py-3 max-h-32 text-sm"
+                  placeholder="Type your message to Mahad..."
+                  className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32 placeholder:text-gray-500"
                   rows={1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -781,39 +467,41 @@ export default function ClientPage() {
                     }
                   }}
                 />
-              </div>
-              {isSpeechSupported && (
                 <Button
                   type="button"
                   onClick={handleToggleRecording}
-                  disabled={conversationMutation.isPending}
-                  variant="ghost"
+                  disabled={!isSpeechSupported || conversationMutation.isPending}
                   size="icon"
+                  variant="ghost"
                   className={cn(
-                    "w-10 h-10",
+                    "h-12 w-12 shrink-0 rounded-full transition-all duration-300",
                     isRecording 
-                      ? "bg-red-100 text-red-600" 
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-red-500/20 text-red-600 pulse-ring" 
+                      : "hover:bg-purple-100 text-purple-600"
                   )}
+                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                 >
-                  <Mic className={cn("w-5 h-5", isRecording && "animate-pulse")} />
+                  <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
                 </Button>
-              )}
-              <Button
-                onClick={handleSendMessage}
-                disabled={!userInput.trim()}
-                size="icon"
-                className="w-10 h-10 whatsapp-green hover:bg-green-600 text-white rounded-full disabled:opacity-50"
-              >
-                {conversationMutation.isPending ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </Button>
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!userInput.trim()}
+                  size="icon"
+                  className="h-12 w-12 shrink-0 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-full shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {conversationMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                  <span className="sr-only">Send</span>
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </header>
+
       </div>
     </div>
   );
