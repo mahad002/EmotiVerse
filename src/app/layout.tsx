@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: 'EmotiVerse',
   description: 'Explore conversations with EmotiVerse AI.',
   icons: {
-    icon: '/favicon.ico',
+    icon: 'https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png',
   },
 };
 
