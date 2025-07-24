@@ -316,6 +316,13 @@ export default function ClientPage() {
   return (
     <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
       <header className="mb-4 text-center flex-shrink-0">
+        <div className="flex items-center justify-center mb-4">
+          <img 
+            src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
+            alt="Inspirovix Logo" 
+            className="h-12 w-auto"
+          />
+        </div>
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
           EmotiVerse
         </h1>
