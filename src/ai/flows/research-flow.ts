@@ -73,7 +73,7 @@ const researchFlow = ai.defineFlow(
 
     if (searchResults.length === 0) {
       return {
-        answer: "I am currently unable to perform web searches. Please try again later.",
+        answer: "I was unable to find any information on the web for your query. Please try a different search.",
         references: [],
       }
     }
