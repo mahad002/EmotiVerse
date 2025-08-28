@@ -13,7 +13,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createUserProfile } from '@/services/user';
+import { createUserProfile, getUserProfile } from '@/services/user';
 import { sendAuthEmail } from '@/ai/flows/send-auth-email';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +35,14 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 
 const signUpSchema = z.object({
@@ -47,6 +55,11 @@ const signUpSchema = z.object({
 const logInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const profileCompletionSchema = z.object({
+  username: z.string().min(2, 'Username must be at least 2 characters'),
+  phoneNumber: z.string().min(10, 'Phone number seems too short'),
 });
 
 const GoogleIcon = () => (
@@ -82,6 +95,8 @@ const AppleIcon = () => (
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState<FirebaseUser | null>(null);
+  const [isProfileCompletionRequired, setIsProfileCompletionRequired] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -93,6 +108,11 @@ export default function LoginPage() {
   const logInForm = useForm<z.infer<typeof logInSchema>>({
     resolver: zodResolver(logInSchema),
     defaultValues: { email: '', password: '' },
+  });
+  
+  const profileCompletionForm = useForm<z.infer<typeof profileCompletionSchema>>({
+    resolver: zodResolver(profileCompletionSchema),
+    defaultValues: { username: '', phoneNumber: '' },
   });
 
   const handleAuthSuccess = async (user: FirebaseUser, isSignUp: boolean, profile?: Partial<z.infer<typeof signUpSchema>>) => {
@@ -150,12 +170,39 @@ export default function LoginPage() {
     const authProvider = provider === 'google' ? new GoogleAuthProvider() : new OAuthProvider('apple.com');
     try {
       const result = await signInWithPopup(auth, authProvider);
-      // For OAuth, we treat it as a potential sign-up to ensure profile is created.
-      await handleAuthSuccess(result.user, true);
+      const userProfile = await getUserProfile(result.user.uid);
+      
+      if (userProfile) {
+        // Existing user, treat as login
+        await handleAuthSuccess(result.user, false);
+      } else {
+        // New user, prompt for profile completion
+        setPendingUser(result.user);
+        setIsProfileCompletionRequired(true);
+      }
     } catch (error: any) {
       toast({ title: 'Sign In Error', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const onCompleteProfile = async (values: z.infer<typeof profileCompletionSchema>) => {
+    if (!pendingUser) return;
+    setLoading(true);
+    try {
+      await handleAuthSuccess(pendingUser, true, {
+        username: values.username,
+        phoneNumber: values.phoneNumber,
+        email: pendingUser.email || '',
+        password: '', // Not needed for OAuth
+      });
+      setIsProfileCompletionRequired(false);
+      setPendingUser(null);
+    } catch (error: any) {
+       toast({ title: 'Profile Completion Error', description: error.message, variant: 'destructive' });
+    } finally {
+       setLoading(false);
     }
   };
 
@@ -301,6 +348,53 @@ export default function LoginPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <Dialog open={isProfileCompletionRequired} onOpenChange={setIsProfileCompletionRequired}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Complete Your Profile</DialogTitle>
+            <DialogDescription>
+              Welcome! Please provide a username and phone number to complete your registration.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...profileCompletionForm}>
+            <form onSubmit={profileCompletionForm.handleSubmit(onCompleteProfile)} className="space-y-4 py-4">
+              <FormField
+                control={profileCompletionForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your_username" {...field} defaultValue={pendingUser?.displayName || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={profileCompletionForm.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1 234 567 890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save and Continue
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
