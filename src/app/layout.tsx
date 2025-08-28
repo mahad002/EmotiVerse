@@ -13,8 +13,8 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'EmotiVerse',
-  description: 'Explore conversations with EmotiVerse AI.',
+  title: 'TalkMate',
+  description: 'Explore conversations with TalkMate AI.',
   icons: {
     icon: 'https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png',
   },
@@ -41,3 +41,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    

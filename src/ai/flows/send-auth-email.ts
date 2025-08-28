@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -8,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const SendAuthEmailInputSchema = z.object({
   email: z.string().email().describe('The email address of the recipient.'),
@@ -37,31 +38,33 @@ const sendAuthEmailFlow = ai.defineFlow(
     if (type === 'signup') {
       console.log(`
         To: ${email}
-        Subject: Welcome to EmotiVerse!
+        Subject: Welcome to TalkMate!
         
         Hi ${username || 'there'},
 
-        Thanks for signing up for EmotiVerse. We're excited to have you!
+        Thanks for signing up for TalkMate. We're excited to have you!
 
         Start chatting now and explore conversations with AI.
 
         Best,
-        The EmotiVerse Team
+        The TalkMate Team
       `);
     } else if (type === 'login') {
       console.log(`
         To: ${email}
-        Subject: New Login to Your EmotiVerse Account
+        Subject: New Login to Your TalkMate Account
         
         Hi,
 
-        We noticed a new login to your EmotiVerse account. If this was you, you can safely ignore this email.
+        We noticed a new login to your TalkMate account. If this was you, you can safely ignore this email.
 
         If you don't recognize this activity, please secure your account immediately.
 
         Best,
-        The EmotiVerse Team
+        The TalkMate Team
       `);
     }
   }
 );
+
+    

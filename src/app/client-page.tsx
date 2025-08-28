@@ -297,7 +297,7 @@ function ClientPage() {
     <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
       <header className="mb-4 text-center flex-shrink-0">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
-          EmotiVerse
+          TalkMate
         </h1>
         <p className="text-muted-foreground mt-2">
           Explore conversations with AI.
@@ -473,4 +473,5 @@ function ClientPage() {
 
 export default withAuth(ClientPage);
 
+    
     
