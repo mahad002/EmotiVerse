@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import AppProviders from '@/components/app-providers';
 import { cn } from '@/lib/utils';
+import { AuthProvider } from '@/hooks/use-auth';
 
 const openSans = Open_Sans({
   subsets: ['latin'],
@@ -33,7 +34,7 @@ export default function RootLayout({
         )}
       >
         <AppProviders>
-          {children}
+          <AuthProvider>{children}</AuthProvider>
           <Toaster />
         </AppProviders>
       </body>

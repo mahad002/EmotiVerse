@@ -32,6 +32,7 @@ import {
   Mic,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import withAuth from '@/components/with-auth';
 
 interface Message {
   id: string;
@@ -48,7 +49,7 @@ declare global {
   }
 }
 
-export default function ClientPage() {
+function ClientPage() {
   const { toast } = useToast();
   const [personas] = useState<Persona[]>(defaultPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
@@ -457,3 +458,5 @@ export default function ClientPage() {
     </div>
   );
 }
+
+export default withAuth(ClientPage);

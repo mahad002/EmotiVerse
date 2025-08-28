@@ -1,5 +1,7 @@
 import ClientPage from './client-page';
 
-export default function Home() {
+function Home() {
   return <ClientPage />;
 }
+
+export default Home;
