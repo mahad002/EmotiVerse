@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -13,7 +14,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createUserProfile, getUserProfile } from '@/services/user';
+import { createUserProfile } from '@/services/user';
 import { sendAuthEmail } from '@/ai/flows/send-auth-email';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -43,12 +44,27 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+import { countries } from '@/config/countries';
+import { getUserProfile } from '@/services/user';
+
+const phoneSchema = z.object({
+  country: z.string().min(1, 'Country is required'),
+  countryCode: z.string().min(1, 'Country code is required'),
+  number: z.string().min(5, 'Phone number seems too short'),
+});
 
 const signUpSchema = z.object({
   username: z.string().min(2, 'Username must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phoneNumber: z.string().min(10, 'Phone number seems too short'),
+  phone: phoneSchema,
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -59,7 +75,7 @@ const logInSchema = z.object({
 
 const profileCompletionSchema = z.object({
   username: z.string().min(2, 'Username must be at least 2 characters'),
-  phoneNumber: z.string().min(10, 'Phone number seems too short'),
+  phone: phoneSchema,
 });
 
 const GoogleIcon = () => (
@@ -92,62 +108,91 @@ const AppleIcon = () => (
   </svg>
 );
 
-
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [pendingUser, setPendingUser] = useState<FirebaseUser | null>(null);
-  const [isProfileCompletionRequired, setIsProfileCompletionRequired] = useState(false);
+  const [isProfileCompletionRequired, setIsProfileCompletionRequired] =
+    useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { username: '', email: '', phoneNumber: '', password: '' },
+    defaultValues: {
+      username: '',
+      email: '',
+      phone: { country: 'United States', countryCode: '+1', number: '' },
+      password: '',
+    },
   });
 
   const logInForm = useForm<z.infer<typeof logInSchema>>({
     resolver: zodResolver(logInSchema),
     defaultValues: { email: '', password: '' },
   });
-  
-  const profileCompletionForm = useForm<z.infer<typeof profileCompletionSchema>>({
+
+  const profileCompletionForm = useForm<
+    z.infer<typeof profileCompletionSchema>
+  >({
     resolver: zodResolver(profileCompletionSchema),
-    defaultValues: { username: '', phoneNumber: '' },
+    defaultValues: {
+      username: '',
+      phone: { country: 'United States', countryCode: '+1', number: '' },
+    },
   });
 
-  const handleAuthSuccess = async (user: FirebaseUser, isSignUp: boolean, profile?: Partial<z.infer<typeof signUpSchema>>) => {
+  const handleAuthSuccess = async (
+    user: FirebaseUser,
+    isSignUp: boolean,
+    profile?: Partial<z.infer<typeof signUpSchema>>
+  ) => {
     try {
       if (isSignUp) {
         await createUserProfile({
           uid: user.uid,
           email: user.email,
           username: profile?.username || user.displayName,
-          phoneNumber: profile?.phoneNumber || user.phoneNumber,
+          phone: profile?.phone || null,
         });
         await sendAuthEmail({
           email: user.email!,
           type: 'signup',
           username: profile?.username || user.displayName || 'there',
         });
-        toast({ title: "Account Created", description: "Welcome! Your account has been successfully created." });
+        toast({
+          title: 'Account Created',
+          description: 'Welcome! Your account has been successfully created.',
+        });
       } else {
         await sendAuthEmail({ email: user.email!, type: 'login' });
-        toast({ title: "Login Successful", description: "Welcome back!" });
+        toast({ title: 'Login Successful', description: 'Welcome back!' });
       }
       router.push('/');
     } catch (error: any) {
-      console.error("Error during post-auth actions:", error);
-      toast({ title: "Post-Authentication Error", description: error.message, variant: 'destructive' });
+      console.error('Error during post-auth actions:', error);
+      toast({
+        title: 'Post-Authentication Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
   const onSignUp = async (values: z.infer<typeof signUpSchema>) => {
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
       await handleAuthSuccess(userCredential.user, true, values);
     } catch (error: any) {
-      toast({ title: 'Sign Up Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Sign Up Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -156,10 +201,18 @@ export default function LoginPage() {
   const onLogIn = async (values: z.infer<typeof logInSchema>) => {
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
       await handleAuthSuccess(userCredential.user, false);
     } catch (error: any) {
-      toast({ title: 'Log In Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Log In Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -167,11 +220,14 @@ export default function LoginPage() {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
-    const authProvider = provider === 'google' ? new GoogleAuthProvider() : new OAuthProvider('apple.com');
+    const authProvider =
+      provider === 'google'
+        ? new GoogleAuthProvider()
+        : new OAuthProvider('apple.com');
     try {
       const result = await signInWithPopup(auth, authProvider);
       const userProfile = await getUserProfile(result.user.uid);
-      
+
       if (userProfile) {
         // Existing user, treat as login
         await handleAuthSuccess(result.user, false);
@@ -181,28 +237,38 @@ export default function LoginPage() {
         setIsProfileCompletionRequired(true);
       }
     } catch (error: any) {
-      toast({ title: 'Sign In Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Sign In Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
-  
-  const onCompleteProfile = async (values: z.infer<typeof profileCompletionSchema>) => {
+
+  const onCompleteProfile = async (
+    values: z.infer<typeof profileCompletionSchema>
+  ) => {
     if (!pendingUser) return;
     setLoading(true);
     try {
       await handleAuthSuccess(pendingUser, true, {
         username: values.username,
-        phoneNumber: values.phoneNumber,
+        phone: values.phone,
         email: pendingUser.email || '',
         password: '', // Not needed for OAuth
       });
       setIsProfileCompletionRequired(false);
       setPendingUser(null);
     } catch (error: any) {
-       toast({ title: 'Profile Completion Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Profile Completion Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
-       setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -224,7 +290,10 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <Form {...logInForm}>
-                <form onSubmit={logInForm.handleSubmit(onLogIn)} className="space-y-4">
+                <form
+                  onSubmit={logInForm.handleSubmit(onLogIn)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={logInForm.control}
                     name="email"
@@ -245,14 +314,20 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="********" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="********"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {loading && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     Log In
                   </Button>
                 </form>
@@ -268,8 +343,22 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={loading}><GoogleIcon />Google</Button>
-                <Button variant="outline" onClick={() => handleOAuthSignIn('apple')} disabled={loading}><AppleIcon />Apple</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOAuthSignIn('google')}
+                  disabled={loading}
+                >
+                  <GoogleIcon />
+                  Google
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOAuthSignIn('apple')}
+                  disabled={loading}
+                >
+                  <AppleIcon />
+                  Apple
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -285,7 +374,10 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <Form {...signUpForm}>
-                <form onSubmit={signUpForm.handleSubmit(onSignUp)} className="space-y-4">
+                <form
+                  onSubmit={signUpForm.handleSubmit(onSignUp)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={signUpForm.control}
                     name="username"
@@ -312,19 +404,64 @@ export default function LoginPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={signUpForm.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+1 234 567 890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <div className="flex gap-2">
+                      <FormField
+                        control={signUpForm.control}
+                        name="phone.country"
+                        render={({ field }) => (
+                          <Select
+                            onValueChange={(value) => {
+                              const country = countries.find(
+                                (c) => c.name === value
+                              );
+                              if (country) {
+                                field.onChange(value);
+                                signUpForm.setValue(
+                                  'phone.countryCode',
+                                  country.dial_code
+                                );
+                              }
+                            }}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select a country" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {countries.map((country) => (
+                                <SelectItem
+                                  key={country.code}
+                                  value={country.name}
+                                >
+                                  {country.name} ({country.dial_code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FormField
+                        control={signUpForm.control}
+                        name="phone.number"
+                        render={({ field }) => (
+                          <FormControl>
+                            <Input placeholder="123 456 7890" {...field} />
+                          </FormControl>
+                        )}
+                      />
+                    </div>
+                    <FormMessage>
+                      {signUpForm.formState.errors.phone?.number?.message ||
+                        signUpForm.formState.errors.phone?.country
+                          ?.message ||
+                        signUpForm.formState.errors.phone?.countryCode
+                          ?.message}
+                    </FormMessage>
+                  </FormItem>
                   <FormField
                     control={signUpForm.control}
                     name="password"
@@ -332,14 +469,20 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="********" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="********"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {loading && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     Create Account
                   </Button>
                 </form>
@@ -348,17 +491,24 @@ export default function LoginPage() {
           </Card>
         </TabsContent>
       </Tabs>
-      
-      <Dialog open={isProfileCompletionRequired} onOpenChange={setIsProfileCompletionRequired}>
+
+      <Dialog
+        open={isProfileCompletionRequired}
+        onOpenChange={setIsProfileCompletionRequired}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Complete Your Profile</DialogTitle>
             <DialogDescription>
-              Welcome! Please provide a username and phone number to complete your registration.
+              Welcome! Please provide a username and phone number to complete
+              your registration.
             </DialogDescription>
           </DialogHeader>
           <Form {...profileCompletionForm}>
-            <form onSubmit={profileCompletionForm.handleSubmit(onCompleteProfile)} className="space-y-4 py-4">
+            <form
+              onSubmit={profileCompletionForm.handleSubmit(onCompleteProfile)}
+              className="space-y-4 py-4"
+            >
               <FormField
                 control={profileCompletionForm.control}
                 name="username"
@@ -366,28 +516,80 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="your_username" {...field} defaultValue={pendingUser?.displayName || ''} />
+                      <Input
+                        placeholder="your_username"
+                        {...field}
+                        defaultValue={pendingUser?.displayName || ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={profileCompletionForm.control}
-                name="phoneNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 234 567 890" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <div className="flex gap-2">
+                  <FormField
+                    control={profileCompletionForm.control}
+                    name="phone.country"
+                    render={({ field }) => (
+                      <Select
+                        onValueChange={(value) => {
+                          const country = countries.find(
+                            (c) => c.name === value
+                          );
+                          if (country) {
+                            field.onChange(value);
+                            profileCompletionForm.setValue(
+                              'phone.countryCode',
+                              country.dial_code
+                            );
+                          }
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {countries.map((country) => (
+                            <SelectItem
+                              key={country.code}
+                              value={country.name}
+                            >
+                              {country.name} ({country.dial_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FormField
+                    control={profileCompletionForm.control}
+                    name="phone.number"
+                    render={({ field }) => (
+                      <FormControl>
+                        <Input placeholder="123 456 7890" {...field} />
+                      </FormControl>
+                    )}
+                  />
+                </div>
+                <FormMessage>
+                  {profileCompletionForm.formState.errors.phone?.number
+                    ?.message ||
+                    profileCompletionForm.formState.errors.phone?.country
+                      ?.message ||
+                    profileCompletionForm.formState.errors.phone?.countryCode
+                      ?.message}
+                </FormMessage>
+              </FormItem>
               <DialogFooter>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Save and Continue
                 </Button>
               </DialogFooter>

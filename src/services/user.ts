@@ -1,3 +1,4 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -7,7 +8,11 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   username: string | null;
-  phoneNumber: string | null;
+  phone: {
+    country: string;
+    countryCode: string;
+    number: string;
+  } | null;
 }
 
 export async function createUserProfile(userProfile: UserProfile): Promise<void> {
