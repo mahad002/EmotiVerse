@@ -69,8 +69,7 @@ const researchFlow = ai.defineFlow(
     outputSchema: ResearchOutputSchema,
   },
   async ({ query }) => {
-    // const searchResults = await searchExa(query);
-    const searchResults: any[] = []; // Temporarily disabled
+    const searchResults = await searchExa(query);
 
     if (searchResults.length === 0) {
       return {
