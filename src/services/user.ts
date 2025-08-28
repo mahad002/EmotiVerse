@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 export interface UserProfile {
   uid: string;
@@ -37,6 +37,19 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 
   if (userSnap.exists()) {
     return userSnap.data() as UserProfile;
+  } else {
+    return null;
+  }
+}
+
+export async function getUserByUsername(username: string): Promise<UserProfile | null> {
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('username', '==', username), limit(1));
+  const querySnapshot = await getDocs(q);
+
+  if (!querySnapshot.empty) {
+    const userDoc = querySnapshot.docs[0];
+    return userDoc.data() as UserProfile;
   } else {
     return null;
   }

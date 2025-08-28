@@ -14,7 +14,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createUserProfile } from '@/services/user';
+import { createUserProfile, getUserByUsername } from '@/services/user';
 import { sendAuthEmail } from '@/ai/flows/send-auth-email';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +73,7 @@ const signUpSchema = z.object({
 });
 
 const logInSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  identifier: z.string().min(1, 'Email or username is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -132,7 +132,7 @@ export default function LoginPage() {
 
   const logInForm = useForm<z.infer<typeof logInSchema>>({
     resolver: zodResolver(logInSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
   });
 
   const profileCompletionForm = useForm<
@@ -206,9 +206,20 @@ export default function LoginPage() {
   const onLogIn = async (values: z.infer<typeof logInSchema>) => {
     setLoading(true);
     try {
+      let email = values.identifier;
+      // Check if identifier is likely not an email
+      if (!email.includes('@')) {
+        const userProfile = await getUserByUsername(email);
+        if (userProfile && userProfile.email) {
+          email = userProfile.email;
+        } else {
+          throw new Error('User not found.');
+        }
+      }
+
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        values.email,
+        email,
         values.password
       );
       await handleAuthSuccess(userCredential.user, false);
@@ -305,12 +316,12 @@ export default function LoginPage() {
                 >
                   <FormField
                     control={logInForm.control}
-                    name="email"
+                    name="identifier"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Email or Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="name@example.com" {...field} />
+                          <Input placeholder="name@example.com or your_username" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
