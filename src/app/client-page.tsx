@@ -30,9 +30,11 @@ import {
   Volume2,
   VolumeX,
   Mic,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import withAuth from '@/components/with-auth';
+import { useAuth } from '@/hooks/use-auth';
 
 interface Message {
   id: string;
@@ -51,6 +53,7 @@ declare global {
 
 function ClientPage() {
   const { toast } = useToast();
+  const { signOut } = useAuth();
   const [personas] = useState<Persona[]>(defaultPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
     defaultPersonas[0].id
@@ -348,6 +351,15 @@ function ClientPage() {
                   <VolumeX className="h-5 w-5 text-muted-foreground" />
                 )}
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={signOut}
+                className="h-9 w-9"
+                aria-label="Sign Out"
+              >
+                <LogOut className="h-5 w-5 text-muted-foreground" />
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -460,3 +472,5 @@ function ClientPage() {
 }
 
 export default withAuth(ClientPage);
+
+    

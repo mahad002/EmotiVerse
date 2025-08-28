@@ -29,6 +29,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -400,6 +401,9 @@ export default function LoginPage() {
                         <FormControl>
                           <Input placeholder="name@example.com" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          We'll use this to send you important notifications.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -454,6 +458,9 @@ export default function LoginPage() {
                         )}
                       />
                     </div>
+                     <FormDescription>
+                      Used for account verification and recovery.
+                    </FormDescription>
                     <FormMessage>
                       {signUpForm.formState.errors.phone?.number?.message ||
                         signUpForm.formState.errors.phone?.country
@@ -576,6 +583,9 @@ export default function LoginPage() {
                     )}
                   />
                 </div>
+                 <FormDescription>
+                    Used for account verification and recovery.
+                </FormDescription>
                 <FormMessage>
                   {profileCompletionForm.formState.errors.phone?.number
                     ?.message ||
@@ -600,3 +610,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
