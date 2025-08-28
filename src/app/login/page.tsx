@@ -56,15 +56,18 @@ import { Loader2 } from 'lucide-react';
 import { countries } from '@/config/countries';
 import { getUserProfile } from '@/services/user';
 
-const phoneSchema = z.object({
-  country: z.string().min(1, 'Country is required'),
-  countryCode: z.string().min(1, 'Country code is required'),
-  number: z.string().min(5, 'Phone number seems too short'),
-});
+const phoneSchema = z
+  .object({
+    country: z.string(),
+    countryCode: z.string(),
+    number: z.string(),
+  })
+  .optional()
+  .default({ country: '', countryCode: '', number: '' });
 
 const signUpSchema = z.object({
   username: z.string().min(2, 'Username must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: phoneSchema,
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
@@ -148,15 +151,16 @@ export default function LoginPage() {
     profile?: Partial<z.infer<typeof signUpSchema>>
   ) => {
     try {
+      const finalEmail = profile?.email || user.email;
       if (isSignUp) {
         await createUserProfile({
           uid: user.uid,
-          email: user.email,
+          email: finalEmail,
           username: profile?.username || user.displayName,
-          phone: profile?.phone || null,
+          phone: profile?.phone?.number ? profile.phone : null,
         });
         await sendAuthEmail({
-          email: user.email!,
+          email: finalEmail!,
           type: 'signup',
           username: profile?.username || user.displayName || 'there',
         });
@@ -184,7 +188,7 @@ export default function LoginPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        values.email,
+        values.email!,
         values.password
       );
       await handleAuthSuccess(userCredential.user, true, values);
@@ -235,6 +239,10 @@ export default function LoginPage() {
       } else {
         // New user, prompt for profile completion
         setPendingUser(result.user);
+        profileCompletionForm.setValue(
+          'username',
+          result.user.displayName || ''
+        );
         setIsProfileCompletionRequired(true);
       }
     } catch (error: any) {
@@ -397,19 +405,16 @@ export default function LoginPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Email (optional)</FormLabel>
                         <FormControl>
                           <Input placeholder="name@example.com" {...field} />
                         </FormControl>
-                        <FormDescription>
-                          We'll use this to send you important notifications.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Phone Number (optional)</FormLabel>
                     <div className="flex gap-2">
                       <FormField
                         control={signUpForm.control}
@@ -458,9 +463,6 @@ export default function LoginPage() {
                         )}
                       />
                     </div>
-                     <FormDescription>
-                      Used for account verification and recovery.
-                    </FormDescription>
                     <FormMessage>
                       {signUpForm.formState.errors.phone?.number?.message ||
                         signUpForm.formState.errors.phone?.country
@@ -534,7 +536,7 @@ export default function LoginPage() {
                 )}
               />
               <FormItem>
-                <FormLabel>Phone Number</FormLabel>
+                <FormLabel>Phone Number (optional)</FormLabel>
                 <div className="flex gap-2">
                   <FormField
                     control={profileCompletionForm.control}
@@ -583,9 +585,6 @@ export default function LoginPage() {
                     )}
                   />
                 </div>
-                 <FormDescription>
-                    Used for account verification and recovery.
-                </FormDescription>
                 <FormMessage>
                   {profileCompletionForm.formState.errors.phone?.number
                     ?.message ||
@@ -610,5 +609,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

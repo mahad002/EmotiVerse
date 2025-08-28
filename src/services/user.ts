@@ -17,7 +17,18 @@ export interface UserProfile {
 
 export async function createUserProfile(userProfile: UserProfile): Promise<void> {
   const userRef = doc(db, 'users', userProfile.uid);
-  await setDoc(userRef, userProfile, { merge: true });
+  // Create a clean profile object, removing any empty optional fields
+  const profileToSave: Partial<UserProfile> = {
+    uid: userProfile.uid,
+    username: userProfile.username,
+  };
+  if (userProfile.email) {
+    profileToSave.email = userProfile.email;
+  }
+  if (userProfile.phone && userProfile.phone.number) {
+    profileToSave.phone = userProfile.phone;
+  }
+  await setDoc(userRef, profileToSave, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
