@@ -21,6 +21,7 @@ import {
   emotionalConversation,
   type EmotionalConversationInput,
 } from '@/ai/flows/emotional-conversation';
+import { research } from '@/ai/flows/research-flow';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
 import {
   Loader2,
@@ -31,6 +32,7 @@ import {
   VolumeX,
   Mic,
   LogOut,
+  BookMarked,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import withAuth from '@/components/with-auth';
@@ -41,6 +43,7 @@ interface Message {
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
+  references?: { title: string; url: string }[];
 }
 
 // Extend window type for SpeechRecognition
@@ -132,6 +135,51 @@ function ClientPage() {
     },
   });
 
+  const researchMutation = useMutation({
+    mutationFn: research,
+    onMutate: async () => {
+      const aiMessageId = 'ai-streaming-' + Date.now();
+      const newAiMessage: Message = {
+        id: aiMessageId,
+        text: '',
+        sender: 'ai',
+        isStreaming: true,
+      };
+      setMessages((prev) => [...prev, newAiMessage]);
+      return { aiMessageId };
+    },
+    onSuccess: (data, variables, context) => {
+      const { answer, references } = data;
+      const newAiMessage: Message = {
+        id: 'ai-' + Date.now(),
+        text: answer,
+        sender: 'ai',
+        references,
+      };
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === context?.aiMessageId ? newAiMessage : msg
+        )
+      );
+
+      if (isVoiceEnabled) {
+        ttsMutation.mutate(answer);
+      }
+    },
+    onError: (error, variables, context) => {
+      toast({
+        title: 'Error in Research',
+        description: error.message || 'AI could not perform research.',
+        variant: 'destructive',
+      });
+      if (context?.aiMessageId) {
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== context.aiMessageId)
+        );
+      }
+    },
+  });
+
   const conversationMutation = useMutation({
     mutationFn: emotionalConversation,
     onMutate: async (variables) => {
@@ -205,21 +253,26 @@ function ClientPage() {
     };
 
     const currentMessages = [...messages, newUserMessage];
-    const history = currentMessages
-      .slice(-10)
-      .map(({ sender, text }) => ({
-        sender: sender === 'ai' ? 'Mahad' : 'user',
-        text,
-      })) as EmotionalConversationInput['history'];
 
     setMessages(currentMessages);
     setUserInput('');
 
-    conversationMutation.mutate({
-      message: userInput,
-      persona: selectedPersona.systemPrompt,
-      history,
-    });
+    if (selectedPersona.id === 'research-assistant') {
+      researchMutation.mutate({ query: userInput });
+    } else {
+      const history = currentMessages
+        .slice(-10)
+        .map(({ sender, text }) => ({
+          sender: sender === 'ai' ? 'Mahad' : 'user',
+          text,
+        })) as EmotionalConversationInput['history'];
+
+      conversationMutation.mutate({
+        message: userInput,
+        persona: selectedPersona.systemPrompt,
+        history,
+      });
+    }
   };
 
   const handleToggleRecording = () => {
@@ -293,6 +346,9 @@ function ClientPage() {
     }
   }, [userInput]);
 
+  const isPending =
+    conversationMutation.isPending || researchMutation.isPending;
+
   return (
     <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
       <header className="mb-4 text-center flex-shrink-0">
@@ -307,7 +363,12 @@ function ClientPage() {
       <Card className="flex-1 flex flex-col shadow-lg border bg-card min-h-0">
         <CardHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
+            <CardTitle className="text-xl">
+              Conversation with{' '}
+              {selectedPersona.id === 'research-assistant'
+                ? 'Research Assistant'
+                : 'Mahad'}
+            </CardTitle>
             <div className="flex items-center gap-2">
               <div className="w-48">
                 <Select
@@ -321,10 +382,7 @@ function ClientPage() {
                     setIsAudioPlaying(false);
                   }}
                 >
-                  <SelectTrigger
-                    id="persona-select"
-                    className="h-9 text-xs"
-                  >
+                  <SelectTrigger id="persona-select" className="h-9 text-xs">
                     <SelectValue placeholder="Select a persona..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -376,7 +434,13 @@ function ClientPage() {
                 >
                   {msg.sender === 'ai' && (
                     <Avatar className="h-8 w-8 self-start">
-                      <AvatarFallback>M</AvatarFallback>
+                      <AvatarFallback>
+                        {selectedPersona.id === 'research-assistant' ? (
+                          <BookMarked className="h-5 w-5" />
+                        ) : (
+                          'M'
+                        )}
+                      </AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -396,7 +460,26 @@ function ClientPage() {
                     ) : (
                       <p className="pr-6 whitespace-pre-wrap">{msg.text}</p>
                     )}
-                     {!msg.isStreaming && msg.text && (
+                    {msg.references && msg.references.length > 0 && (
+                      <div className="mt-4 pt-2 border-t border-muted-foreground/20">
+                        <h4 className="font-bold mb-2 text-xs">References:</h4>
+                        <ul className="space-y-1">
+                          {msg.references.map((ref, index) => (
+                            <li key={index}>
+                              <a
+                                href={ref.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline text-xs"
+                              >
+                                {ref.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {!msg.isStreaming && msg.text && (
                       <div className="absolute bottom-1.5 right-2 flex items-center">
                         <CheckCheck className="h-4 w-4 text-ring" />
                       </div>
@@ -424,7 +507,11 @@ function ClientPage() {
                 ref={textAreaRef}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Message Mahad..."
+                placeholder={
+                  selectedPersona.id === 'research-assistant'
+                    ? 'Enter your research query...'
+                    : 'Message Mahad...'
+                }
                 className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32"
                 rows={1}
                 onKeyDown={(e) => {
@@ -437,7 +524,7 @@ function ClientPage() {
               <Button
                 type="button"
                 onClick={handleToggleRecording}
-                disabled={!isSpeechSupported || conversationMutation.isPending}
+                disabled={!isSpeechSupported || isPending}
                 size="icon"
                 variant="ghost"
                 className="h-10 w-10 shrink-0 rounded-full"
@@ -456,7 +543,7 @@ function ClientPage() {
                 size="icon"
                 className="h-10 w-10 shrink-0 bg-primary hover:bg-primary/90 rounded-full"
               >
-                {conversationMutation.isPending ? (
+                {isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Send className="h-5 w-5" />
@@ -472,6 +559,3 @@ function ClientPage() {
 }
 
 export default withAuth(ClientPage);
-
-    
-    
