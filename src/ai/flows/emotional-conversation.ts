@@ -10,19 +10,22 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { generateOpenAIResponse } from '@/ai/openai-handler';
+import { characters, type Character } from '@/config/characters';
 
 const EmotionalConversationInputSchema = z.object({
   message: z.string().describe('The latest message from the user.'),
   persona: z.string().describe('The emotional persona for the conversation.'),
+  characterId: z.string().describe('The character ID (character-1 for Gemini, character-2 for OpenAI).'),
   history: z
     .array(
       z.object({
-        sender: z.enum(['user', 'Mahad']),
+        sender: z.enum(['user', 'Mahad', 'Sara']),
         text: z.string(),
       })
     )
     .describe(
-      'The recent conversation history, with Mahad as the assistant. Use this to maintain context.'
+      'The recent conversation history. Use this to maintain context.'
     )
     .optional(),
 });
@@ -44,20 +47,58 @@ export type EmotionalConversationOutput = z.infer<
 export async function emotionalConversation(
   input: EmotionalConversationInput
 ): Promise<EmotionalConversationOutput> {
-  return emotionalConversationFlow(input);
+  const character = characters.find((c) => c.id === input.characterId) || characters[0];
+  
+  // Route to OpenAI if character-2 is selected
+  if (character.apiProvider === 'openai') {
+    const characterName = character.name;
+    
+    // Normalize history sender names for OpenAI
+    const normalizedHistory = input.history?.map((entry) => ({
+      sender: entry.sender === 'Mahad' || entry.sender === 'Sara' 
+        ? characterName 
+        : entry.sender,
+      text: entry.text,
+    }));
+    
+    return await generateOpenAIResponse({
+      message: input.message,
+      persona: input.persona,
+      characterName,
+      history: normalizedHistory,
+    });
+  }
+  
+  // Default to Gemini (character-1)
+  const characterName = character.name;
+  
+  // Normalize history sender names for Gemini too
+  const normalizedHistory = input.history?.map((entry) => ({
+    sender: entry.sender === 'Mahad' || entry.sender === 'Sara'
+      ? characterName 
+      : entry.sender,
+    text: entry.text,
+  }));
+  
+  const normalizedInput = {
+    ...input,
+    history: normalizedHistory,
+  };
+  
+  return emotionalConversationFlow(normalizedInput, character);
 }
 
-const prompt = ai.definePrompt({
-  name: 'emotionalConversationPrompt',
+const createPrompt = (characterName: string) => ai.definePrompt({
+  name: `emotionalConversationPrompt-${characterName}`,
   input: {schema: EmotionalConversationInputSchema},
   output: {schema: EmotionalConversationOutputSchema},
-  prompt: `Your name is Mahad and you are having a conversation with a user. You have the following emotional persona: {{{persona}}}.
+  prompt: `Your name is ${characterName} and you are having a conversation with a user. You have the following emotional persona: {{{persona}}}.
 
-You are NOT an AI, a bot, or a language model. You are a person named Mahad.
+You are NOT an AI, a bot, or a language model. You are a person named ${characterName}.
 - Do NOT mention that you are an AI.
 - Do NOT apologize unless you've made a real mistake.
 - Avoid repetitive, generic phrases like "I understand" or "As an AI...".
-- Stay in character as Mahad with the given persona.
+- Stay in character as ${characterName} with the given persona.
 
 Your goal is to make the conversation feel as realistic and human as possible.
 
@@ -78,14 +119,11 @@ Now, respond to the user's latest message:
 User: {{{message}}}`,
 });
 
-const emotionalConversationFlow = ai.defineFlow(
-  {
-    name: 'emotionalConversationFlow',
-    inputSchema: EmotionalConversationInputSchema,
-    outputSchema: EmotionalConversationOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+const emotionalConversationFlow = async (
+  input: EmotionalConversationInput,
+  character: Character
+) => {
+  const prompt = createPrompt(character.name);
+  const {output} = await prompt(input);
+  return output!;
+};

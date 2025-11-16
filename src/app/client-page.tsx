@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
+import { characters, defaultCharacter, type Character } from '@/config/characters';
 import { type EmotionalConversationInput } from '@/ai/flows/emotional-conversation';
 import {
   Loader2,
@@ -50,6 +51,10 @@ export default function ClientPage() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>(
     defaultPersonas[0].id
   );
+  const [charactersList] = useState<Character[]>(characters);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(
+    defaultCharacter.id
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState<string>('');
 
@@ -67,6 +72,8 @@ export default function ClientPage() {
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || personas[0];
+  const selectedCharacter =
+    charactersList.find((c) => c.id === selectedCharacterId) || charactersList[0];
 
   useEffect(() => {
     const SpeechRecognition =
@@ -228,7 +235,7 @@ export default function ClientPage() {
     const history = currentMessages
       .slice(-10)
       .map(({ sender, text }) => ({
-        sender: sender === 'ai' ? 'Mahad' : 'user',
+        sender: sender === 'ai' ? selectedCharacter.name : 'user',
         text,
       })) as EmotionalConversationInput['history'];
 
@@ -238,6 +245,7 @@ export default function ClientPage() {
     conversationMutation.mutate({
       message: userInput,
       persona: selectedPersona.systemPrompt,
+      characterId: selectedCharacterId,
       history,
     });
   };
@@ -334,8 +342,35 @@ export default function ClientPage() {
       <Card className="flex-1 flex flex-col shadow-lg border bg-card min-h-0">
         <CardHeader className="p-4 border-b">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-xl">Conversation with Mahad</CardTitle>
+            <CardTitle className="text-xl">Conversation with {selectedCharacter.name}</CardTitle>
             <div className="flex items-center gap-2">
+              <div className="w-48">
+                <Select
+                  value={selectedCharacterId}
+                  onValueChange={(value) => {
+                    setSelectedCharacterId(value);
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                    }
+                    setAudioQueue([]);
+                    setIsAudioPlaying(false);
+                  }}
+                >
+                  <SelectTrigger
+                    id="character-select"
+                    className="h-9 text-xs"
+                  >
+                    <SelectValue placeholder="Select a character..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {charactersList.map((character) => (
+                      <SelectItem key={character.id} value={character.id}>
+                        {character.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="w-48">
                 <Select
                   value={selectedPersonaId}
@@ -352,7 +387,7 @@ export default function ClientPage() {
                     id="persona-select"
                     className="h-9 text-xs"
                   >
-                    <SelectValue placeholder="Select a persona..." />
+                    <SelectValue placeholder="Select a tone..." />
                   </SelectTrigger>
                   <SelectContent>
                     {personas.map((persona) => (
@@ -394,7 +429,7 @@ export default function ClientPage() {
                 >
                   {msg.sender === 'ai' && (
                     <Avatar className="h-8 w-8 self-start">
-                      <AvatarFallback>M</AvatarFallback>
+                      <AvatarFallback>{selectedCharacter.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -442,7 +477,7 @@ export default function ClientPage() {
                 ref={textAreaRef}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Message Mahad..."
+                placeholder={`Message ${selectedCharacter.name}...`}
                 className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32"
                 rows={1}
                 onKeyDown={(e) => {
