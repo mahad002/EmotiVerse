@@ -9,13 +9,14 @@ export const characters: Character[] = [
   {
     id: 'character-1',
     name: 'Mahad',
-    description: 'Powered by Gemini',
+
+    description: 'Online',
     apiProvider: 'gemini',
   },
   {
     id: 'character-2',
     name: 'Sara',
-    description: 'Powered by OpenAI',
+    description: 'Online',
     apiProvider: 'openai',
   },
 ];

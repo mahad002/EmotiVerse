@@ -55,5 +55,13 @@ body {
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
+    overflow: hidden;
+  }
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+  #__next, #root {
+    height: 100%;
   }
 }

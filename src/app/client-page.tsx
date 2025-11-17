@@ -12,9 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { defaultPersonas, type Persona } from '@/config/personas';
 import { characters, defaultCharacter, type Character } from '@/config/characters';
@@ -27,6 +26,17 @@ import {
   Volume2,
   VolumeX,
   Mic,
+  MoreVertical,
+  ChevronLeft,
+  Plus,
+  Smile,
+  MessageSquare,
+  Phone,
+  Video,
+  Users,
+  Download,
+  Settings,
+  MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +45,13 @@ interface Message {
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
+}
+
+interface ChatData {
+  characterId: string;
+  messages: Message[];
+  lastMessage?: string;
+  lastMessageTime?: Date;
 }
 
 // Extend window type for SpeechRecognition
@@ -55,8 +72,21 @@ export default function ClientPage() {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>(
     defaultCharacter.id
   );
-  const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Store messages separately for each chat
+  const [chats, setChats] = useState<Record<string, ChatData>>(() => {
+    const initialChats: Record<string, ChatData> = {};
+    characters.forEach((char) => {
+      initialChats[char.id] = {
+        characterId: char.id,
+        messages: [],
+      };
+    });
+    return initialChats;
+  });
+  
   const [userInput, setUserInput] = useState<string>('');
+  const messages = chats[selectedCharacterId]?.messages || [];
 
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [audioQueue, setAudioQueue] = useState<string[]>([]);
@@ -71,9 +101,9 @@ export default function ClientPage() {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedPersona =
-    personas.find((p) => p.id === selectedPersonaId) || personas[0];
+    personas.find((p) => p.id === selectedPersonaId) || (personas.length > 0 ? personas[0] : null);
   const selectedCharacter =
-    charactersList.find((c) => c.id === selectedCharacterId) || charactersList[0];
+    charactersList.find((c) => c.id === selectedCharacterId) || (charactersList.length > 0 ? charactersList[0] : null);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -169,14 +199,28 @@ export default function ClientPage() {
         sender: 'ai',
         isStreaming: true,
       };
-      setMessages((prev) => [...prev, newAiMessage]);
+      setChats((prev) => ({
+        ...prev,
+        [variables.characterId]: {
+          ...prev[variables.characterId],
+          messages: [...(prev[variables.characterId]?.messages || []), newAiMessage],
+        },
+      }));
       return { aiMessageId };
     },
     onSuccess: async (data, variables, context) => {
       const aiMessageId = context?.aiMessageId;
+      const characterId = variables.characterId;
       if (!aiMessageId || !data.response) return;
 
-      setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId));
+      // Remove streaming message
+      setChats((prev) => ({
+        ...prev,
+        [characterId]: {
+          ...prev[characterId],
+          messages: (prev[characterId]?.messages || []).filter((msg) => msg.id !== aiMessageId),
+        },
+      }));
 
       const chunks = data.response;
       for (const chunk of chunks) {
@@ -190,7 +234,16 @@ export default function ClientPage() {
           text: chunk,
           sender: 'ai',
         };
-        setMessages((prev) => [...prev, newAiMessage]);
+        
+        setChats((prev) => ({
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: [...(prev[characterId]?.messages || []), newAiMessage],
+            lastMessage: chunk,
+            lastMessageTime: new Date(),
+          },
+        }));
 
         if (isVoiceEnabled) {
           ttsMutation.mutate(chunk);
@@ -204,9 +257,15 @@ export default function ClientPage() {
         variant: 'destructive',
       });
       if (context?.aiMessageId) {
-        setMessages((prev) =>
-          prev.filter((msg) => msg.id !== context.aiMessageId)
-        );
+        setChats((prev) => ({
+          ...prev,
+          [variables.characterId]: {
+            ...prev[variables.characterId],
+            messages: (prev[variables.characterId]?.messages || []).filter(
+              (msg) => msg.id !== context.aiMessageId
+            ),
+          },
+        }));
       }
     },
   });
@@ -214,13 +273,22 @@ export default function ClientPage() {
   const handleSendMessage = () => {
     if (!userInput.trim()) return;
 
-    if (messages.some((msg) => msg.isStreaming)) {
+    const currentChatMessages = chats[selectedCharacterId]?.messages || [];
+    if (currentChatMessages.some((msg) => msg.isStreaming)) {
       const newUserMessage: Message = {
         id: Date.now().toString() + '-user',
         text: userInput,
         sender: 'user',
       };
-      setMessages((prev) => [...prev, newUserMessage]);
+      setChats((prev) => ({
+        ...prev,
+        [selectedCharacterId]: {
+          ...prev[selectedCharacterId],
+          messages: [...(prev[selectedCharacterId]?.messages || []), newUserMessage],
+          lastMessage: userInput,
+          lastMessageTime: new Date(),
+        },
+      }));
       setUserInput('');
       return;
     }
@@ -231,7 +299,9 @@ export default function ClientPage() {
       sender: 'user',
     };
 
-    const currentMessages = [...messages, newUserMessage];
+    if (!selectedCharacter || !selectedPersona) return;
+
+    const currentMessages = [...currentChatMessages, newUserMessage];
     const history = currentMessages
       .slice(-10)
       .map(({ sender, text }) => ({
@@ -239,7 +309,16 @@ export default function ClientPage() {
         text,
       })) as EmotionalConversationInput['history'];
 
-    setMessages(currentMessages);
+    // Update messages for current chat
+    setChats((prev) => ({
+      ...prev,
+      [selectedCharacterId]: {
+        ...prev[selectedCharacterId],
+        messages: currentMessages,
+        lastMessage: userInput,
+        lastMessageTime: new Date(),
+      },
+    }));
     setUserInput('');
 
     conversationMutation.mutate({
@@ -263,12 +342,15 @@ export default function ClientPage() {
     if (!isVoiceEnabled && audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
+      audioRef.current = null;
       setAudioQueue([]);
       setIsAudioPlaying(false);
     }
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
       }
     };
   }, [isVoiceEnabled]);
@@ -276,36 +358,78 @@ export default function ClientPage() {
   useEffect(() => {
     if (isVoiceEnabled && !isAudioPlaying && audioQueue.length > 0) {
       const nextAudioSrc = audioQueue[0];
-      audioRef.current = new Audio(nextAudioSrc);
-
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsAudioPlaying(true);
-          })
-          .catch((error) => {
-            console.error('Audio playback failed:', error);
-            setIsAudioPlaying(false);
-            setAudioQueue((prev) => prev.slice(1));
-          });
+      
+      // Validate audio data URI
+      if (!nextAudioSrc || !nextAudioSrc.startsWith('data:audio/')) {
+        console.warn('Invalid audio data URI, skipping:', nextAudioSrc);
+        setAudioQueue((prev) => prev.slice(1));
+        return;
       }
 
-      audioRef.current.onended = () => {
+      // Clean up previous audio if exists
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+
+      try {
+        audioRef.current = new Audio(nextAudioSrc);
+        
+        // Set up event handlers before playing
+        audioRef.current.onended = () => {
+          setIsAudioPlaying(false);
+          setAudioQueue((prev) => prev.slice(1));
+          if (audioRef.current) {
+            audioRef.current.src = '';
+            audioRef.current = null;
+          }
+        };
+        
+        audioRef.current.onerror = (e) => {
+          const error = audioRef.current?.error;
+          console.error('Audio playback error:', {
+            code: error?.code,
+            message: error?.message,
+            error: error,
+            src: nextAudioSrc?.substring(0, 50) + '...'
+          });
+          setIsAudioPlaying(false);
+          setAudioQueue((prev) => prev.slice(1));
+          if (audioRef.current) {
+            audioRef.current.src = '';
+            audioRef.current = null;
+          }
+        };
+
+        // Attempt to play
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsAudioPlaying(true);
+            })
+            .catch((error) => {
+              console.error('Audio play() promise rejected:', error);
+              setIsAudioPlaying(false);
+              setAudioQueue((prev) => prev.slice(1));
+              if (audioRef.current) {
+                audioRef.current.src = '';
+                audioRef.current = null;
+              }
+            });
+        }
+      } catch (error) {
+        console.error('Error creating audio element:', error);
         setIsAudioPlaying(false);
         setAudioQueue((prev) => prev.slice(1));
-      };
-      audioRef.current.onerror = (e) => {
-        console.error('Audio playback error:', e);
-        setIsAudioPlaying(false);
-        setAudioQueue((prev) => prev.slice(1));
-      };
+      }
     }
   }, [audioQueue, isAudioPlaying, isVoiceEnabled]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div > div');
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollElement) {
         scrollElement.scrollTop = scrollElement.scrollHeight;
       }
@@ -321,205 +445,426 @@ export default function ClientPage() {
     }
   }, [userInput]);
 
-  return (
-    <div className="container mx-auto px-4 py-4 flex flex-col h-screen max-w-3xl">
-      <header className="mb-4 text-center flex-shrink-0">
-        <div className="flex items-center justify-center mb-4">
-          <img 
-            src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
-            alt="Inspirovix Logo" 
-            className="h-12 w-auto"
-          />
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
-          EmotiVerse
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Explore conversations with AI.
-        </p>
-      </header>
+  const handleCharacterSelect = (characterId: string) => {
+    setSelectedCharacterId(characterId);
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setAudioQueue([]);
+    setIsAudioPlaying(false);
+  };
 
-      <Card className="flex-1 flex flex-col shadow-lg border bg-card min-h-0">
-        <CardHeader className="p-4 border-b">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-xl">Conversation with {selectedCharacter.name}</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="w-48">
-                <Select
-                  value={selectedCharacterId}
-                  onValueChange={(value) => {
-                    setSelectedCharacterId(value);
-                    if (audioRef.current) {
-                      audioRef.current.pause();
-                    }
-                    setAudioQueue([]);
-                    setIsAudioPlaying(false);
-                  }}
-                >
-                  <SelectTrigger
-                    id="character-select"
-                    className="h-9 text-xs"
-                  >
-                    <SelectValue placeholder="Select a character..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {charactersList.map((character) => (
-                      <SelectItem key={character.id} value={character.id}>
+  // Safety check - if no character is selected, show loading
+  if (!selectedCharacter || !selectedPersona) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-800">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex h-screen w-full bg-gray-800">
+      {/* Sidebar - WhatsApp style */}
+      <div className="w-14 bg-[#202c33] flex flex-col items-center py-3 gap-3 flex-shrink-0">
+        {/* Logo/Avatar at top */}
+        <div className="w-10 h-10 rounded-full bg-[#075e54] flex items-center justify-center mb-2 cursor-pointer">
+          <Avatar className="h-10 w-10 border-2 border-white/20">
+            <AvatarImage 
+              src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
+              alt="EmotiVerse Logo"
+            />
+            <AvatarFallback className="bg-white/20 text-white font-semibold">
+              E
+            </AvatarFallback>
+          </Avatar>
+        </div>
+
+        {/* Messages icon */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 rounded-full bg-[#2a3942] text-white hover:bg-[#2a3942]/80 relative"
+          aria-label="Messages"
+        >
+          <MessageSquare className="h-5 w-5" />
+        </Button>
+
+        {/* Separator */}
+        <div className="w-10 h-px bg-gray-600"></div>
+
+        {/* Downloads icon */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 rounded-full text-gray-400 hover:bg-gray-700/50 relative"
+          aria-label="Downloads"
+        >
+          <Download className="h-5 w-5" />
+        </Button>
+
+        {/* Separator */}
+        <div className="w-10 h-px bg-gray-600 mt-auto"></div>
+
+        {/* Settings icon */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 rounded-full text-gray-400 hover:bg-gray-700/50"
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </Button>
+
+        {/* User avatar at bottom */}
+        <Avatar className="h-12 w-12 cursor-pointer">
+          <AvatarFallback className="bg-[#075e54] text-white">
+            <User className="h-5 w-5" />
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
+      {/* Chat List Sidebar */}
+      <div className="w-80 bg-[#111b21] flex flex-col flex-shrink-0 border-r border-gray-700">
+        {/* Header */}
+        <div className="bg-[#202c33] px-4 py-4 flex items-center justify-between">
+          <h2 className="text-white text-xl font-semibold">Chats</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-gray-300 hover:bg-gray-700"
+              aria-label="New chat"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-gray-300 hover:bg-gray-700"
+              aria-label="Menu"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Chat List */}
+        <div className="flex-1 overflow-y-auto">
+          {charactersList.map((character) => {
+            const chat = chats[character.id];
+            const lastMessage = chat?.lastMessage || 'No messages yet';
+            const lastTime = chat?.lastMessageTime 
+              ? new Date(chat.lastMessageTime).toLocaleTimeString('en-US', { 
+                  hour: 'numeric', 
+                  minute: '2-digit',
+                  hour12: true 
+                })
+              : '';
+            
+            return (
+              <div
+                key={character.id}
+                onClick={() => handleCharacterSelect(character.id)}
+                className={cn(
+                  "px-4 py-3 cursor-pointer hover:bg-[#202c33] border-l-4 transition-colors",
+                  selectedCharacterId === character.id 
+                    ? "bg-[#2a3942] border-[#075e54]" 
+                    : "border-transparent"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12 flex-shrink-0">
+                    {/* <AvatarImage 
+                      src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
+                      alt={character.name}
+                    /> */}
+                    <AvatarFallback className="bg-[#075e54] text-white">
+                      {character.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-white text-base font-medium truncate">
                         {character.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-48">
-                <Select
-                  value={selectedPersonaId}
-                  onValueChange={(value) => {
-                    setSelectedPersonaId(value);
-                    if (audioRef.current) {
-                      audioRef.current.pause();
-                    }
-                    setAudioQueue([]);
-                    setIsAudioPlaying(false);
-                  }}
-                >
-                  <SelectTrigger
-                    id="persona-select"
-                    className="h-9 text-xs"
-                  >
-                    <SelectValue placeholder="Select a tone..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {personas.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.id}>
-                        {persona.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsVoiceEnabled((v) => !v)}
-                className="h-9 w-9"
-                aria-label={
-                  isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'
-                }
-              >
-                {isVoiceEnabled ? (
-                  <Volume2 className="h-5 w-5" />
-                ) : (
-                  <VolumeX className="h-5 w-5 text-muted-foreground" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col overflow-hidden p-2 sm:p-4 sm:pt-0">
-          <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
-            <div className="space-y-4 py-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full',
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {msg.sender === 'ai' && (
-                    <Avatar className="h-8 w-8 self-start">
-                      <AvatarFallback>{selectedCharacter.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div
-                    className={cn(
-                      'relative max-w-[75%] rounded-2xl px-4 py-2 shadow-sm text-sm leading-relaxed border',
-                      msg.sender === 'user'
-                        ? 'bg-card text-card-foreground rounded-br-lg'
-                        : 'bg-secondary text-secondary-foreground rounded-bl-lg'
-                    )}
-                  >
-                    {msg.isStreaming && msg.text.length === 0 ? (
-                      <div className="flex items-center space-x-1 py-1">
-                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
-                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
-                        <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse delay-300"></span>
-                      </div>
-                    ) : (
-                      <p className="pr-6 whitespace-pre-wrap">{msg.text}</p>
-                    )}
-                     {!msg.isStreaming && msg.text && (
-                      <div className="absolute bottom-1.5 right-2 flex items-center">
-                        <CheckCheck className="h-4 w-4 text-ring" />
-                      </div>
-                    )}
+                      </h3>
+                      {lastTime && (
+                        <span className="text-gray-400 text-xs flex-shrink-0 ml-2">
+                          {lastTime}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm truncate">
+                      {lastMessage}
+                    </p>
                   </div>
-                  {msg.sender === 'user' && (
-                    <Avatar className="h-8 w-8 self-start">
-                      <AvatarFallback className="bg-transparent">
-                        <User className="h-5 w-5 text-primary" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
                 </div>
-              ))}
-              {messages.length === 0 && (
-                <div className="text-center text-muted-foreground py-10">
-                  <p>Select a persona and start the conversation.</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-          <div className="mt-auto pt-2">
-            <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-card border">
-              <Textarea
-                ref={textAreaRef}
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder={`Message ${selectedCharacter.name}...`}
-                className="flex-grow resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-2 max-h-32"
-                rows={1}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                onClick={handleToggleRecording}
-                disabled={!isSpeechSupported || conversationMutation.isPending}
-                size="icon"
-                variant="ghost"
-                className="h-10 w-10 shrink-0 rounded-full"
-                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-              >
-                <Mic
-                  className={cn(
-                    'h-5 w-5',
-                    isRecording && 'text-primary animate-pulse'
-                  )}
-                />
-              </Button>
-              <Button
-                onClick={handleSendMessage}
-                disabled={!userInput.trim()}
-                size="icon"
-                className="h-10 w-10 shrink-0 bg-primary hover:bg-primary/90 rounded-full"
-              >
-                {conversationMutation.isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-                <span className="sr-only">Send</span>
-              </Button>
-            </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-[#ece5dd] sm:bg-[#dedbd2]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23f0f0f0%22 fill-opacity=%220.4%22%3E%3Cpath d=%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}>
+      {/* Header - WhatsApp style */}
+      <header className="bg-[#075e54] text-white px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Mobile: Show back button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-10 w-10 text-white hover:bg-white/10"
+            onClick={() => {}}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          
+          <Avatar className="h-10 w-10 cursor-pointer border-2 border-white/20">
+            <AvatarFallback className="bg-white/20 text-white font-semibold">
+              {selectedCharacter.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => {
+            // Could open character/persona selector
+          }}>
+            <h2 className="text-base font-medium truncate">{selectedCharacter.name}</h2>
+            <p className="text-xs opacity-90 truncate">
+              {selectedCharacter.description}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsVoiceEnabled((v) => !v)}
+            className="h-10 w-10 text-white hover:bg-white/10 rounded-full"
+            aria-label={isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'}
+          >
+            {isVoiceEnabled ? (
+              <Volume2 className="h-5 w-5" />
+            ) : (
+              <VolumeX className="h-5 w-5" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-white hover:bg-white/10 rounded-full"
+            onClick={() => {
+              // Open dropdown with character and persona selection
+            }}
+          >
+            <MoreVertical className="h-5 w-5" />
+          </Button>
+        </div>
+      </header>
+      
+      {/* Settings Dropdown - Hidden by default, shown on menu click */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-600 whitespace-nowrap">Tone:</label>
+          <Select
+            value={selectedPersonaId}
+            onValueChange={(value) => {
+              setSelectedPersonaId(value);
+              if (audioRef.current) {
+                audioRef.current.pause();
+              }
+              setAudioQueue([]);
+              setIsAudioPlaying(false);
+            }}
+          >
+            <SelectTrigger
+              id="persona-select"
+              className="h-8 text-xs bg-white"
+            >
+              <SelectValue placeholder="Tone..." />
+            </SelectTrigger>
+            <SelectContent>
+              {personas.map((persona) => (
+                <SelectItem key={persona.id} value={persona.id}>
+                  {persona.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Messages Area - WhatsApp style */}
+      <div className="flex-1 overflow-hidden relative">
+        <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
+          <div className="px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col justify-end">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 py-10 flex-1 flex items-center justify-center">
+                <p className="text-sm">Start a conversation with {selectedCharacter.name}</p>
+              </div>
+            )}
+            {messages.map((msg, index) => {
+              const prevMsg = index > 0 ? messages[index - 1] : null;
+              const showAvatar = msg.sender === 'ai' && (prevMsg?.sender !== 'ai' || !prevMsg);
+              const isConsecutive = prevMsg?.sender === msg.sender;
+              
+              return (
+              <div
+                key={msg.id}
+                className={cn(
+                  'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
+                  msg.sender === 'user' ? 'justify-end' : 'justify-start',
+                  isConsecutive && 'mt-0.5',
+                  !isConsecutive && 'mt-2'
+                )}
+              >
+                {showAvatar ? (
+                  <Avatar className="h-7 w-7 flex-shrink-0">
+                    <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                      {selectedCharacter.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="h-7 w-7 flex-shrink-0" />
+                )}
+                
+                <div
+                  className={cn(
+                    'relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] rounded-lg px-2 py-1.5 text-[15px] break-words',
+                    msg.sender === 'user'
+                      ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm ml-auto'
+                      : 'bg-white text-gray-900 rounded-tl-none shadow-sm'
+                  )}
+                >
+                  {msg.isStreaming && msg.text.length === 0 ? (
+                    <div className="flex items-center space-x-1.5 py-1">
+                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
+                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
+                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-relaxed pb-0.5">{msg.text}</p>
+                  )}
+                  
+                  {!msg.isStreaming && msg.text && (
+                    <div className={cn(
+                      "flex items-center gap-1 mt-0.5",
+                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                    )}>
+                      <span className="text-[11px] text-gray-500 leading-none">
+                        {new Date().toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit',
+                          hour12: true 
+                        })}
+                      </span>
+                      {msg.sender === 'user' && (
+                        <CheckCheck className="h-3 w-3 text-blue-500 flex-shrink-0 ml-0.5" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {msg.sender === 'user' && (
+                  <Avatar className="h-7 w-7 flex-shrink-0">
+                    <AvatarFallback className="bg-[#075e54] text-white text-xs">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Input Area - WhatsApp style */}
+      {/* py-4 = padding for outer gray area (top/bottom spacing) */}
+      <div className="bg-[#f0f0f0] px-4 py-4 flex-shrink-0 border-t border-gray-300">
+        {/* py-2 = padding for inner white rounded input bar */}
+        <div className="flex items-center gap-1 bg-white rounded-full px-2 py-2">
+          {/* h-9 w-9 = button size (36px) - smaller icons for WhatsApp style */}
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full"
+            aria-label="Attach file"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+          
+          {/* Emoji icon - same size as plus */}
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full"
+            aria-label="Emoji"
+          >
+            <Smile className="h-5 w-5" />
+          </Button>
+          
+          {/* Text input - py-2 = padding inside textarea, max-h-24 = allows growth for multi-line (up to 96px) */}
+          <Textarea
+            ref={textAreaRef}
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            placeholder="Type a message"
+            className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] placeholder:text-gray-500 min-h-[40px]"
+            rows={1}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          />
+          
+          {/* Send button (when typing) or Mic button (when empty) - WhatsApp style */}
+          {/* h-9 w-9 = matches other icon buttons */}
+          {userInput.trim() ? (
+            <Button
+              onClick={handleSendMessage}
+              disabled={conversationMutation.isPending}
+              size="icon"
+              className="h-9 w-9 shrink-0 bg-[#075e54] hover:bg-[#064e45] text-white rounded-full transition-colors"
+            >
+              {conversationMutation.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+              <span className="sr-only">Send</span>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleToggleRecording}
+              disabled={!isSpeechSupported || conversationMutation.isPending}
+              size="icon"
+              variant="ghost"
+              className={cn(
+                "h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full",
+                isRecording && "text-red-500"
+              )}
+              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+            >
+              <Mic
+                className={cn(
+                  'h-5 w-5',
+                  isRecording && 'animate-pulse'
+                )}
+              />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
     </div>
   );
 }
