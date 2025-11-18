@@ -44,6 +44,8 @@ import {
   BarChart3,
   Calendar,
   StickyNote,
+  MapPin,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SettingsDialog } from '@/components/settings-dialog';
@@ -52,6 +54,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Message {
   id: string;
@@ -82,9 +91,7 @@ export default function ClientPage() {
     defaultPersonas[0].id
   );
   const [charactersList] = useState<Character[]>(characters);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(
-    defaultCharacter.id
-  );
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>('');
   
   // Store messages separately for each chat
   const [chats, setChats] = useState<Record<string, ChatData>>(() => {
@@ -112,6 +119,7 @@ export default function ClientPage() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [isMobileChatView, setIsMobileChatView] = useState(false);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -119,7 +127,7 @@ export default function ClientPage() {
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || (personas.length > 0 ? personas[0] : null);
   const selectedCharacter =
-    charactersList.find((c) => c.id === selectedCharacterId) || (charactersList.length > 0 ? charactersList[0] : null);
+    selectedCharacterId ? charactersList.find((c) => c.id === selectedCharacterId) : null;
 
   useEffect(() => {
     const SpeechRecognition =
@@ -461,6 +469,24 @@ export default function ClientPage() {
     }
   }, [userInput]);
 
+  // Handle window resize - on desktop always show both views
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        // On desktop, always show both views (mobile chat view state doesn't matter)
+        // But we keep the state for when user resizes back to mobile
+      } else {
+        // On mobile, if we're in chat view but no character selected, go to list
+        if (!selectedCharacterId && isMobileChatView) {
+          setIsMobileChatView(false);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileChatView, selectedCharacterId]);
+
   const handleCharacterSelect = (characterId: string) => {
     setSelectedCharacterId(characterId);
     if (audioRef.current) {
@@ -468,10 +494,14 @@ export default function ClientPage() {
     }
     setAudioQueue([]);
     setIsAudioPlaying(false);
+    // On mobile, navigate to chat view when selecting a character
+    if (window.innerWidth < 768) {
+      setIsMobileChatView(true);
+    }
   };
 
-  // Safety check - if no character is selected, show loading
-  if (!selectedCharacter || !selectedPersona) {
+  // Safety check - if no persona selected, show loading
+  if (!selectedPersona) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-800">
         <div className="text-white">Loading...</div>
@@ -481,8 +511,8 @@ export default function ClientPage() {
   
   return (
     <div className="flex h-screen w-full bg-background">
-      {/* Sidebar - WhatsApp style */}
-      <div className="w-14 bg-[#e9edef] dark:bg-[#202c33] border-r border-border flex flex-col items-center py-3 gap-3 flex-shrink-0">
+      {/* Sidebar - WhatsApp style - Hidden on mobile */}
+      <div className="hidden md:flex w-14 bg-[#e9edef] dark:bg-[#202c33] border-r border-border flex-col items-center py-3 gap-3 flex-shrink-0">
         {/* Logo/Avatar at top */}
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center mb-2 cursor-pointer">
           <Avatar className="h-10 w-10 border-2 border-white/20">
@@ -541,8 +571,11 @@ export default function ClientPage() {
         </Avatar>
       </div>
 
-      {/* Chat List Sidebar */}
-      <div className="w-80 bg-[#ffffff] dark:bg-[#111b21] border-r border-border flex flex-col flex-shrink-0">
+      {/* Chat List Sidebar - Hidden on mobile when in chat view */}
+      <div className={cn(
+        "w-full md:w-80 bg-[#ffffff] dark:bg-[#111b21] border-r border-border flex flex-col flex-shrink-0",
+        isMobileChatView && "hidden md:flex"
+      )}>
         {/* Header */}
         <div className="bg-[#e9edef] dark:bg-[#202c33] px-4 py-4 flex items-center justify-between">
           <h2 className="text-[#111b21] dark:text-white text-xl font-semibold">Chats</h2>
@@ -555,10 +588,20 @@ export default function ClientPage() {
             >
               <Plus className="h-5 w-5" />
             </Button>
+            {/* Settings button - visible on mobile, hidden on desktop (desktop uses sidebar) */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
+              className="md:hidden h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
+              aria-label="Settings"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden md:flex h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
               aria-label="Menu"
             >
               <MoreHorizontal className="h-5 w-5" />
@@ -622,8 +665,11 @@ export default function ClientPage() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]" style={{
+      {/* Main Chat Area - Hidden on mobile when in list view */}
+      <div className={cn(
+        "flex-1 flex flex-col bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
+        !isMobileChatView && "hidden md:flex"
+      )} style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23f0f0f0%22 fill-opacity=%220.4%22%3E%3Cpath d=%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
       }}>
       {/* Header - WhatsApp style */}
@@ -634,7 +680,7 @@ export default function ClientPage() {
             variant="ghost"
             size="icon"
             className="md:hidden h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10"
-            onClick={() => {}}
+            onClick={() => setIsMobileChatView(false)}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -669,16 +715,61 @@ export default function ClientPage() {
               <VolumeX className="h-5 w-5" />
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
-            onClick={() => {
-              // Open dropdown with character and persona selection
-            }}
-          >
-            <MoreVertical className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
+                aria-label="Menu"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                onClick={() => setIsSettingsOpen(true)}
+                className="cursor-pointer"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  // Could add more options here
+                }}
+                className="cursor-pointer"
+              >
+                View contact
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Could add more options here
+                }}
+                className="cursor-pointer"
+              >
+                Search
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Could add more options here
+                }}
+                className="cursor-pointer"
+              >
+                Mute notifications
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  // Could add more options here
+                }}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                Clear chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       
@@ -820,9 +911,119 @@ export default function ClientPage() {
             <PopoverContent 
               side="top" 
               align="start"
-              className="w-56 p-2 bg-[#233138] dark:bg-[#233138] border-[#3b4a54] dark:border-[#3b4a54] shadow-xl"
+              className="w-auto p-3 bg-white dark:bg-[#233138] border-gray-200 dark:border-[#3b4a54] shadow-xl"
             >
-              <div className="space-y-1">
+              {/* Mobile: Grid layout - 2 rows x 4 columns */}
+              <div className="grid grid-cols-4 gap-3 md:hidden">
+                {/* Row 1 */}
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle photos
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#0086ff] flex items-center justify-center">
+                    <ImageIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Photos</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle camera
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-gray-600 dark:bg-gray-700 flex items-center justify-center">
+                    <Camera className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Camera</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle location
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#25d366] flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Location</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle contact
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-gray-600 dark:bg-gray-700 flex items-center justify-center">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Contact</span>
+                </button>
+
+                {/* Row 2 */}
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle document
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#0086ff] flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Document</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle poll
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#ff9800] flex items-center justify-center">
+                    <BarChart3 className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Poll</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle event
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#e91e63] flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">Event</span>
+                </button>
+
+                <button
+                  className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3b4a54] transition-colors"
+                  onClick={() => {
+                    setIsAttachmentMenuOpen(false);
+                    // Handle AI images
+                  }}
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#0086ff] flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <span className="text-[10px] text-[#111b21] dark:text-white font-medium">AI images</span>
+                </button>
+              </div>
+
+              {/* Desktop: Vertical list layout */}
+              <div className="hidden md:block w-56 space-y-1">
                 {/* Document */}
                 <button
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
