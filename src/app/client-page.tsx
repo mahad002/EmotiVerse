@@ -398,8 +398,8 @@ export default function ClientPage() {
       }
 
       try {
-        audioRef.current = new Audio(nextAudioSrc);
-        
+      audioRef.current = new Audio(nextAudioSrc);
+
         // Set up event handlers before playing
         audioRef.current.onended = () => {
           setIsAudioPlaying(false);
@@ -427,22 +427,22 @@ export default function ClientPage() {
         };
 
         // Attempt to play
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setIsAudioPlaying(true);
-            })
-            .catch((error) => {
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsAudioPlaying(true);
+          })
+          .catch((error) => {
               console.error('Audio play() promise rejected:', error);
-              setIsAudioPlaying(false);
-              setAudioQueue((prev) => prev.slice(1));
+            setIsAudioPlaying(false);
+            setAudioQueue((prev) => prev.slice(1));
               if (audioRef.current) {
                 audioRef.current.src = '';
                 audioRef.current = null;
               }
-            });
-        }
+          });
+      }
       } catch (error) {
         console.error('Error creating audio element:', error);
         setIsAudioPlaying(false);
@@ -502,7 +502,7 @@ export default function ClientPage() {
 
   // Safety check - if no persona selected, show loading
   if (!selectedPersona) {
-    return (
+  return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-800">
         <div className="text-white">Loading...</div>
       </div>
@@ -517,9 +517,9 @@ export default function ClientPage() {
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center mb-2 cursor-pointer">
           <Avatar className="h-10 w-10 border-2 border-white/20">
             <AvatarImage 
-              src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
+            src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
               alt="EmotiVerse Logo"
-            />
+          />
             <AvatarFallback className="bg-white/20 text-white font-semibold">
               E
             </AvatarFallback>
@@ -665,7 +665,8 @@ export default function ClientPage() {
         </div>
       </div>
 
-      {/* Main Chat Area - Hidden on mobile when in list view */}
+      {/* Main Chat Area - Hidden on mobile when in list view, only show if character selected */}
+      {selectedCharacter && (
       <div className={cn(
         "flex-1 flex flex-col bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
         !isMobileChatView && "hidden md:flex"
@@ -772,38 +773,38 @@ export default function ClientPage() {
           </DropdownMenu>
         </div>
       </header>
-      
+
       {/* Settings Dropdown - Hidden by default, shown on menu click */}
       <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
-        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
           <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Tone:</label>
-          <Select
-            value={selectedPersonaId}
-            onValueChange={(value) => {
-              setSelectedPersonaId(value);
-              if (audioRef.current) {
-                audioRef.current.pause();
-              }
-              setAudioQueue([]);
-              setIsAudioPlaying(false);
-            }}
-          >
-            <SelectTrigger
-              id="persona-select"
+                <Select
+                  value={selectedPersonaId}
+                  onValueChange={(value) => {
+                    setSelectedPersonaId(value);
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                    }
+                    setAudioQueue([]);
+                    setIsAudioPlaying(false);
+                  }}
+                >
+                  <SelectTrigger
+                    id="persona-select"
               className="h-8 text-xs bg-white dark:bg-[#2a3942] dark:text-white border border-gray-200 dark:border-[#3c4d57]"
-            >
+                  >
               <SelectValue placeholder="Tone..." />
-            </SelectTrigger>
+                  </SelectTrigger>
             <SelectContent className="bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white border border-gray-200 dark:border-[#3c4d57]">
-              {personas.map((persona) => (
-                <SelectItem key={persona.id} value={persona.id}>
-                  {persona.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+                    {personas.map((persona) => (
+                      <SelectItem key={persona.id} value={persona.id}>
+                        {persona.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
       {/* Messages Area - WhatsApp style */}
       <div className="flex-1 overflow-hidden relative">
@@ -812,7 +813,7 @@ export default function ClientPage() {
             {messages.length === 0 && (
               <div className="text-center text-gray-500 dark:text-gray-400 py-10 flex-1 flex items-center justify-center">
                 <p className="text-sm">Start a conversation with {selectedCharacter.name}</p>
-              </div>
+          </div>
             )}
             {messages.map((msg, index) => {
               const prevMsg = index > 0 ? messages[index - 1] : null;
@@ -820,9 +821,9 @@ export default function ClientPage() {
               const isConsecutive = prevMsg?.sender === msg.sender;
               
               return (
-              <div
-                key={msg.id}
-                className={cn(
+                <div
+                  key={msg.id}
+                  className={cn(
                   'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
                   msg.sender === 'user' ? 'justify-end' : 'justify-start',
                   isConsecutive && 'mt-0.5',
@@ -834,30 +835,30 @@ export default function ClientPage() {
                     <AvatarFallback className="bg-gray-200 text-gray-600 text-xs dark:bg-[#1f2c34] dark:text-white">
                       {selectedCharacter.name.charAt(0)}
                     </AvatarFallback>
-                  </Avatar>
+                    </Avatar>
                 ) : (
                   <div className="h-7 w-7 flex-shrink-0" />
-                )}
+                  )}
                 
-                <div
-                  className={cn(
+                  <div
+                    className={cn(
                     'relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] rounded-lg px-2 py-1.5 text-[15px] break-words',
-                    msg.sender === 'user'
+                      msg.sender === 'user'
                       ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm ml-auto dark:bg-[#005c4b] dark:text-white'
                       : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
-                  )}
-                >
-                  {msg.isStreaming && msg.text.length === 0 ? (
+                    )}
+                  >
+                    {msg.isStreaming && msg.text.length === 0 ? (
                     <div className="flex items-center space-x-1.5 py-1">
                       <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
                       <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
                       <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                     <p className="whitespace-pre-wrap leading-relaxed pb-0.5">{msg.text}</p>
-                  )}
+                    )}
                   
-                  {!msg.isStreaming && msg.text && (
+                     {!msg.isStreaming && msg.text && (
                     <div className={cn(
                       "flex items-center gap-1 mt-0.5",
                       msg.sender === 'user' ? 'justify-end' : 'justify-start'
@@ -872,22 +873,22 @@ export default function ClientPage() {
                       {msg.sender === 'user' && (
                         <CheckCheck className="h-3 w-3 text-blue-500 flex-shrink-0 ml-0.5" />
                       )}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
                 
-                {msg.sender === 'user' && (
+                  {msg.sender === 'user' && (
                   <Avatar className="h-7 w-7 flex-shrink-0">
                     <AvatarFallback className="bg-[#075e54] text-white text-xs">
                       <User className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
               );
             })}
-          </div>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
       </div>
 
       {/* Input Area - WhatsApp style */}
@@ -1023,115 +1024,115 @@ export default function ClientPage() {
               </div>
 
               {/* Desktop: Vertical list layout */}
-              <div className="hidden md:block w-56 space-y-1">
+              <div className="hidden md:block w-56 p-1">
                 {/* Document */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle document upload
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#9b51e0] bg-opacity-20">
-                    <FileText className="h-5 w-5 text-[#9b51e0]" />
+                  <div className="p-1.5 rounded bg-[#9b51e0] bg-opacity-20">
+                    <FileText className="h-4 w-4 text-[#9b51e0]" />
                   </div>
                   <span className="text-white text-sm font-normal">Document</span>
                 </button>
 
                 {/* Photos & videos */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle photos & videos
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#0086ff] bg-opacity-20">
-                    <ImageIcon className="h-5 w-5 text-[#0086ff]" />
+                  <div className="p-1.5 rounded bg-[#0086ff] bg-opacity-20">
+                    <ImageIcon className="h-4 w-4 text-[#0086ff]" />
                   </div>
                   <span className="text-white text-sm font-normal">Photos & videos</span>
                 </button>
 
                 {/* Camera */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle camera
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#e91e63] bg-opacity-20">
-                    <Camera className="h-5 w-5 text-[#e91e63]" />
+                  <div className="p-1.5 rounded bg-[#e91e63] bg-opacity-20">
+                    <Camera className="h-4 w-4 text-[#e91e63]" />
                   </div>
                   <span className="text-white text-sm font-normal">Camera</span>
                 </button>
 
                 {/* Audio */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle audio
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#ff9800] bg-opacity-20">
-                    <Headphones className="h-5 w-5 text-[#ff9800]" />
+                  <div className="p-1.5 rounded bg-[#ff9800] bg-opacity-20">
+                    <Headphones className="h-4 w-4 text-[#ff9800]" />
                   </div>
                   <span className="text-white text-sm font-normal">Audio</span>
                 </button>
 
                 {/* Contact */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle contact
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#00bcd4] bg-opacity-20">
-                    <User className="h-5 w-5 text-[#00bcd4]" />
+                  <div className="p-1.5 rounded bg-[#00bcd4] bg-opacity-20">
+                    <User className="h-4 w-4 text-[#00bcd4]" />
                   </div>
                   <span className="text-white text-sm font-normal">Contact</span>
                 </button>
 
                 {/* Poll */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle poll
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#ff9800] bg-opacity-20">
-                    <BarChart3 className="h-5 w-5 text-[#ff9800]" />
+                  <div className="p-1.5 rounded bg-[#ff9800] bg-opacity-20">
+                    <BarChart3 className="h-4 w-4 text-[#ff9800]" />
                   </div>
                   <span className="text-white text-sm font-normal">Poll</span>
                 </button>
 
                 {/* Event */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle event
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#e91e63] bg-opacity-20">
-                    <Calendar className="h-5 w-5 text-[#e91e63]" />
+                  <div className="p-1.5 rounded bg-[#e91e63] bg-opacity-20">
+                    <Calendar className="h-4 w-4 text-[#e91e63]" />
                   </div>
                   <span className="text-white text-sm font-normal">Event</span>
                 </button>
 
                 {/* New sticker */}
                 <button
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm hover:bg-[#3b4a54] dark:hover:bg-[#3b4a54] transition-colors text-left"
                   onClick={() => {
                     setIsAttachmentMenuOpen(false);
                     // Handle new sticker
                   }}
                 >
-                  <div className="p-2 rounded-md bg-[#25d366] bg-opacity-20">
-                    <StickyNote className="h-5 w-5 text-[#25d366]" />
+                  <div className="p-1.5 rounded bg-[#25d366] bg-opacity-20">
+                    <StickyNote className="h-4 w-4 text-[#25d366]" />
                   </div>
                   <span className="text-white text-sm font-normal">New sticker</span>
                 </button>
@@ -1151,20 +1152,20 @@ export default function ClientPage() {
           </Button>
           
           {/* Text input - py-2 = padding inside textarea, max-h-24 = allows growth for multi-line (up to 96px) */}
-          <Textarea
-            ref={textAreaRef}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
+              <Textarea
+                ref={textAreaRef}
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
             placeholder="Type a message"
             className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 min-h-[40px]"
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-          />
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
           
           {/* Send button (when typing) or Mic button (when empty) - WhatsApp style */}
           {/* h-9 w-9 = matches other icon buttons */}
@@ -1183,29 +1184,30 @@ export default function ClientPage() {
               <span className="sr-only">Send</span>
             </Button>
           ) : (
-            <Button
-              type="button"
-              onClick={handleToggleRecording}
-              disabled={!isSpeechSupported || conversationMutation.isPending}
-              size="icon"
-              variant="ghost"
+              <Button
+                type="button"
+                onClick={handleToggleRecording}
+                disabled={!isSpeechSupported || conversationMutation.isPending}
+                size="icon"
+                variant="ghost"
               className={cn(
                 "h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54]",
                 isRecording && "text-red-500 dark:text-red-400"
               )}
-              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-            >
-              <Mic
-                className={cn(
-                  'h-5 w-5',
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              >
+                <Mic
+                  className={cn(
+                    'h-5 w-5',
                   isRecording && 'animate-pulse'
-                )}
-              />
-            </Button>
+                  )}
+                />
+              </Button>
           )}
-        </div>
+            </div>
+          </div>
       </div>
-    </div>
+      )}
 
     <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </div>
