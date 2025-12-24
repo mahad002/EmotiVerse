@@ -11,7 +11,7 @@ export const characters: Character[] = [
     name: 'Mahad',
 
     description: 'Online',
-    apiProvider: 'gemini',
+    apiProvider: 'openai', // Changed from 'gemini' to 'openai' - Gemini commented out for now
   },
   {
     id: 'character-2',

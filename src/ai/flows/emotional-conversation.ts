@@ -8,15 +8,17 @@
  * - EmotionalConversationOutput - The return type for the emotionalConversation function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+// Gemini imports - commented out for now
+// import {ai} from '@/ai/genkit';
+// import {z} from 'genkit';
+import {z} from 'zod'; // Using zod directly instead of genkit's zod
 import { generateOpenAIResponse } from '@/ai/openai-handler';
 import { characters, type Character } from '@/config/characters';
 
 const EmotionalConversationInputSchema = z.object({
   message: z.string().describe('The latest message from the user.'),
   persona: z.string().describe('The emotional persona for the conversation.'),
-  characterId: z.string().describe('The character ID (character-1 for Gemini, character-2 for OpenAI).'),
+  characterId: z.string().describe('The character ID (both characters now use OpenAI).'),
   history: z
     .array(
       z.object({
@@ -49,26 +51,27 @@ export async function emotionalConversation(
 ): Promise<EmotionalConversationOutput> {
   const character = characters.find((c) => c.id === input.characterId) || characters[0];
   
-  // Route to OpenAI if character-2 is selected
-  if (character.apiProvider === 'openai') {
-    const characterName = character.name;
-    
-    // Normalize history sender names for OpenAI
-    const normalizedHistory = input.history?.map((entry) => ({
-      sender: entry.sender === 'Mahad' || entry.sender === 'Sara' 
-        ? characterName 
-        : entry.sender,
-      text: entry.text,
-    }));
-    
-    return await generateOpenAIResponse({
-      message: input.message,
-      persona: input.persona,
-      characterName,
-      history: normalizedHistory,
-    });
-  }
+  // Both characters now use OpenAI
+  const characterName = character.name;
   
+  // Normalize history sender names for OpenAI
+  const normalizedHistory = input.history?.map((entry) => ({
+    sender: entry.sender === 'Mahad' || entry.sender === 'Sara' 
+      ? characterName 
+      : entry.sender,
+    text: entry.text,
+  }));
+  
+  return await generateOpenAIResponse({
+    message: input.message,
+    persona: input.persona,
+    characterName,
+    history: normalizedHistory,
+  });
+  
+  // ========== GEMINI CODE - COMMENTED OUT FOR NOW ==========
+  // Will be restored later when Gemini quota issues are resolved
+  /*
   // Default to Gemini (character-1)
   const characterName = character.name;
   
@@ -86,8 +89,12 @@ export async function emotionalConversation(
   };
   
   return emotionalConversationFlow(normalizedInput, character);
+  */
 }
 
+// ========== GEMINI CODE - COMMENTED OUT FOR NOW ==========
+// Will be restored later when Gemini quota issues are resolved
+/*
 const createPrompt = (characterName: string) => ai.definePrompt({
   name: `emotionalConversationPrompt-${characterName}`,
   input: {schema: EmotionalConversationInputSchema},
@@ -127,3 +134,4 @@ const emotionalConversationFlow = async (
   const {output} = await prompt(input);
   return output!;
 };
+*/
