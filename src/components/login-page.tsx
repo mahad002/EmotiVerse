@@ -14,6 +14,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import EmotiDashboard from '@/components/emoti-dashboard';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -133,7 +134,7 @@ export default function LoginPage() {
     data: { name: string; phone: string; email: string }
   ) {
     await setDoc(
-      doc(db, 'users', uid),
+      doc(db!, 'users', uid),
       { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
       { merge: true }
     );
@@ -143,7 +144,7 @@ export default function LoginPage() {
   const onLogin = handleLogin(async ({ email, password }) => {
     setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth!, email, password);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       toast({ title: 'Sign-in failed', description: firebaseErrorMessage(code), variant: 'destructive' });
@@ -155,7 +156,7 @@ export default function LoginPage() {
   const onRegister = handleRegister(async ({ name, phone, email, password }) => {
     setBusy(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth!, email, password);
       await updateProfile(cred.user, { displayName: name });
       await saveUserProfile(cred.user.uid, { name, phone, email });
     } catch (err: unknown) {
@@ -169,15 +170,15 @@ export default function LoginPage() {
   const onGoogle = async () => {
     setBusy(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth!, googleProvider);
       const user = result.user;
       // Merge with existing profile: never overwrite saved name/phone
-      const existingSnap = await getDoc(doc(db, 'users', user.uid));
+      const existingSnap = await getDoc(doc(db!, 'users', user.uid));
       const existing = existingSnap.exists() ? (existingSnap.data() as { name?: string; phone?: string }) : {};
       const savedName = (existing.name ?? '').toString().trim();
       const savedPhone = (existing.phone ?? '').toString().trim();
       await setDoc(
-        doc(db, 'users', user.uid),
+        doc(db!, 'users', user.uid),
         {
           name: savedName || user.displayName || '',
           phone: savedPhone,
@@ -209,158 +210,173 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0b0f1a]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b0f1a]">
       {/* Ambient glows */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-emerald-600/20 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-700/20 blur-[120px]" />
+        <div className="absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-emerald-600/15 blur-[140px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-teal-600/10 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 h-[600px] w-[600px] rounded-full bg-violet-700/15 blur-[140px]" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:64px_64px]" />
       </div>
 
+      {/* Two-column layout */}
       <div
-        className="relative z-10 w-full max-w-md mx-4 my-8"
+        className="relative z-10 min-h-screen flex items-center"
         style={{ animation: 'splash-content-in 0.5s ease-out' }}
       >
-        {/* Card */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-2xl">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="mb-3 inline-flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
-                <span className="text-lg font-bold text-white">E</span>
+        <div className="w-full max-w-7xl mx-auto px-2 py-8 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center">
+
+          {/* ── LEFT: Login / Register card ──────────────────────────── */}
+          <div className="w-full max-w-md mx-auto lg:mx-0">
+            {/* Card */}
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-2xl">
+              {/* Header */}
+              <div className="mb-8 text-center">
+                <div className="mb-3 inline-flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
+                    <span className="text-lg font-bold text-white">E</span>
+                  </div>
+                  <span className="text-2xl font-bold text-white tracking-tight">
+                    EmotiVerse
+                  </span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  {mode === 'login' ? 'Welcome back 👋' : 'Create your account'}
+                </p>
               </div>
-              <span className="text-2xl font-bold text-white tracking-tight">
-                EmotiVerse
-              </span>
+
+              {/* Google button */}
+              <button
+                type="button"
+                onClick={onGoogle}
+                disabled={busy}
+                className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-white/10 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <GoogleIcon />
+                Continue with Google
+              </button>
+
+              <div className="relative mb-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-xs text-slate-500">or continue with email</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              {/* ── LOGIN form ─────────────────────────────────────── */}
+              {mode === 'login' && (
+                <form onSubmit={onLogin} className="flex flex-col gap-4">
+                  <Field label="Email" error={loginErr.email?.message}>
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      {...loginReg('email')}
+                    />
+                  </Field>
+                  <Field label="Password" error={loginErr.password?.message}>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      {...loginReg('password')}
+                    />
+                  </Field>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="mt-2 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {busy ? 'Signing in…' : 'Sign In'}
+                  </button>
+                </form>
+              )}
+
+              {/* ── REGISTER form ───────────────────────────────────── */}
+              {mode === 'register' && (
+                <form onSubmit={onRegister} className="flex flex-col gap-4">
+                  <Field label="Full Name" error={regErr.name?.message}>
+                    <Input
+                      type="text"
+                      placeholder="Jane Smith"
+                      autoComplete="name"
+                      {...regReg('name')}
+                    />
+                  </Field>
+                  <Field label="Phone Number" error={regErr.phone?.message}>
+                    <Input
+                      type="tel"
+                      placeholder="+1 555 000 1234"
+                      autoComplete="tel"
+                      {...regReg('phone')}
+                    />
+                  </Field>
+                  <Field label="Email" error={regErr.email?.message}>
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      {...regReg('email')}
+                    />
+                  </Field>
+                  <Field label="Password" error={regErr.password?.message}>
+                    <Input
+                      type="password"
+                      placeholder="Min. 6 characters"
+                      autoComplete="new-password"
+                      {...regReg('password')}
+                    />
+                  </Field>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="mt-2 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {busy ? 'Creating account…' : 'Create Account'}
+                  </button>
+                </form>
+              )}
+
+              {/* Toggle */}
+              <p className="mt-6 text-center text-sm text-slate-500">
+                {mode === 'login' ? (
+                  <>
+                    New to EmotiVerse?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setMode('register')}
+                      className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      Create account
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setMode('login')}
+                      className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
-            <p className="text-sm text-slate-400">
-              {mode === 'login' ? 'Welcome back 👋' : 'Create your account'}
+
+            <p className="mt-4 text-center text-xs text-slate-600">
+              By continuing you agree to our Terms &amp; Privacy Policy
             </p>
           </div>
 
-          {/* Google button */}
-          <button
-            type="button"
-            onClick={onGoogle}
-            disabled={busy}
-            className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-white/10 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-
-          <div className="relative mb-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs text-slate-500">or continue with email</span>
-            <div className="h-px flex-1 bg-white/10" />
+          {/* ── RIGHT: Hero Dashboard (desktop only) ─────────────────── */}
+          <div className="hidden lg:block">
+            <EmotiDashboard />
           </div>
-
-          {/* ── LOGIN form ──────────────────────────────────────────── */}
-          {mode === 'login' && (
-            <form onSubmit={onLogin} className="flex flex-col gap-4">
-              <Field label="Email" error={loginErr.email?.message}>
-                <Input
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  {...loginReg('email')}
-                />
-              </Field>
-              <Field label="Password" error={loginErr.password?.message}>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  {...loginReg('password')}
-                />
-              </Field>
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="mt-2 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {busy ? 'Signing in…' : 'Sign In'}
-              </button>
-            </form>
-          )}
-
-          {/* ── REGISTER form ────────────────────────────────────────── */}
-          {mode === 'register' && (
-            <form onSubmit={onRegister} className="flex flex-col gap-4">
-              <Field label="Full Name" error={regErr.name?.message}>
-                <Input
-                  type="text"
-                  placeholder="Jane Smith"
-                  autoComplete="name"
-                  {...regReg('name')}
-                />
-              </Field>
-              <Field label="Phone Number" error={regErr.phone?.message}>
-                <Input
-                  type="tel"
-                  placeholder="+1 555 000 1234"
-                  autoComplete="tel"
-                  {...regReg('phone')}
-                />
-              </Field>
-              <Field label="Email" error={regErr.email?.message}>
-                <Input
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  {...regReg('email')}
-                />
-              </Field>
-              <Field label="Password" error={regErr.password?.message}>
-                <Input
-                  type="password"
-                  placeholder="Min. 6 characters"
-                  autoComplete="new-password"
-                  {...regReg('password')}
-                />
-              </Field>
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="mt-2 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {busy ? 'Creating account…' : 'Create Account'}
-              </button>
-            </form>
-          )}
-
-          {/* Toggle */}
-          <p className="mt-6 text-center text-sm text-slate-500">
-            {mode === 'login' ? (
-              <>
-                New to EmotiVerse?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('register')}
-                  className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-                >
-                  Create account
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('login')}
-                  className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
         </div>
-
-        <p className="mt-4 text-center text-xs text-slate-600">
-          By continuing you agree to our Terms & Privacy Policy
-        </p>
       </div>
     </div>
   );

@@ -71,6 +71,7 @@ import {
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
+import HeroDashboard from '@/components/codem-dashboard';
 
 const MAHAD_CHARACTER_ID = 'character-1';
 const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
@@ -1225,7 +1226,7 @@ export default function ClientPage() {
       </div>
 
       {/* Main Chat Area - Hidden on mobile when in list view, only show if character selected */}
-      {selectedCharacter && (
+      {selectedCharacter ? (
       <div className={cn(
         "flex-1 flex flex-col bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
         !isMobileChatView && "hidden md:flex"
@@ -1410,13 +1411,23 @@ export default function ClientPage() {
         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
           <div className="px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col justify-end">
             {displayMessages.length === 0 && (
-              <div className="text-center text-gray-500 dark:text-gray-400 py-10 flex-1 flex items-center justify-center">
-                <p className="text-sm">
-                  {messages.length === 0
-                    ? `Start a conversation with ${selectedCharacter.name}`
-                    : 'No messages match your search.'}
-                </p>
-          </div>
+              <div className="flex-1 flex items-center justify-center p-8">
+                {messages.length === 0 ? (
+                  selectedCharacterId === 'character-3' ? (
+                    <div className="w-full">
+                      <HeroDashboard />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Start a conversation with {selectedCharacter.name}
+                    </p>
+                  )
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No messages match your search.
+                  </p>
+                )}
+              </div>
             )}
             {displayMessages.map((msg, index) => {
               const prevMsg = index > 0 ? displayMessages[index - 1] : null;
@@ -2111,7 +2122,7 @@ export default function ClientPage() {
             </div>
           </div>
       </div>
-      )}
+      ) : null}
 
     {/* Profile & Settings sheet (avatar = Profile tab, settings button = Settings tab) */}
     <Sheet open={isProfileSheetOpen} onOpenChange={setIsProfileSheetOpen}>
