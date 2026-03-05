@@ -16,7 +16,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { defaultPersonas, type Persona } from '@/config/personas';
+import { codeMPersona, defaultPersonas, type Persona } from '@/config/personas';
 import { characters, defaultCharacter, type Character } from '@/config/characters';
 import { type EmotionalConversationInput } from '@/ai/flows/emotional-conversation';
 import {
@@ -248,6 +248,8 @@ export default function ClientPage() {
     personas.find((p) => p.id === selectedPersonaId) || (personas.length > 0 ? personas[0] : null);
   const selectedCharacter =
     selectedCharacterId ? charactersList.find((c) => c.id === selectedCharacterId) : null;
+  const isCodeMSelected = selectedCharacterId === CODEM_CHARACTER_ID;
+  const activePersona = isCodeMSelected ? codeMPersona : selectedPersona;
 
   useEffect(() => {
     if (selectedCharacterId && selectedCharacterId !== MAHAD_CHARACTER_ID) {
@@ -650,7 +652,7 @@ export default function ClientPage() {
       setPendingVoiceDataUri(null);
       setPendingVoiceDurationSeconds(0);
       const base64 = audioUri.includes(',') ? audioUri.split(',')[1] : '';
-      if (base64 && selectedCharacter && selectedPersona) {
+      if (base64 && selectedCharacter && activePersona) {
         fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -668,7 +670,7 @@ export default function ClientPage() {
             setIsWaitingForVoiceResponse(true);
             conversationMutation.mutate({
               message: transcript,
-              persona: selectedPersona.systemPrompt,
+              persona: activePersona.systemPrompt,
               characterId: selectedCharacterId,
               history,
               respondWithVoice: true,
@@ -714,7 +716,7 @@ export default function ClientPage() {
         sender: 'user',
         imageDataUri: imageUri,
       };
-      if (!selectedCharacter || !selectedPersona) return;
+      if (!selectedCharacter || !activePersona) return;
       const currentMessages = [...currentChatMessages, newUserMessage];
       const history = currentMessages
         .slice(-10)
@@ -737,7 +739,7 @@ export default function ClientPage() {
       if (respondWithVoice) setIsWaitingForVoiceResponse(true);
       conversationMutation.mutate({
         message: caption,
-        persona: selectedPersona.systemPrompt,
+        persona: activePersona.systemPrompt,
         characterId: selectedCharacterId,
         history,
         imageDataUri: imageUri,
@@ -777,7 +779,7 @@ export default function ClientPage() {
       sender: 'user',
     };
 
-    if (!selectedCharacter || !selectedPersona) return;
+    if (!selectedCharacter || !activePersona) return;
 
     const currentMessages = [...currentChatMessages, newUserMessage];
     const history = currentMessages
@@ -803,7 +805,7 @@ export default function ClientPage() {
     if (respondWithVoice) setIsWaitingForVoiceResponse(true);
     conversationMutation.mutate({
       message: effectiveText,
-      persona: selectedPersona.systemPrompt,
+      persona: activePersona.systemPrompt,
       characterId: selectedCharacterId,
       history,
       respondWithVoice,
@@ -1046,7 +1048,7 @@ export default function ClientPage() {
   };
 
   // Safety check - if no persona selected, show loading
-  if (!selectedPersona) {
+  if (!activePersona) {
   return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-800">
         <div className="text-white">Loading...</div>
@@ -1371,35 +1373,44 @@ export default function ClientPage() {
 
       {/* Settings Dropdown - Hidden by default, shown on menu click */}
       <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
-            <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Tone:</label>
-                <Select
-                  value={selectedPersonaId}
-                  onValueChange={(value) => {
-                    setSelectedPersonaId(value);
-                    if (audioRef.current) {
-                      audioRef.current.pause();
-                    }
-                    setAudioQueue([]);
-                    setIsAudioPlaying(false);
-                  }}
-                >
-                  <SelectTrigger
-                    id="persona-select"
-              className="h-8 text-xs bg-white dark:bg-[#2a3942] dark:text-white border border-gray-200 dark:border-[#3c4d57]"
-                  >
-              <SelectValue placeholder="Tone..." />
-                  </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white border border-gray-200 dark:border-[#3c4d57]">
-                    {personas.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.id}>
-                        {persona.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {isCodeMSelected ? (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Mode:</label>
+            <div className="h-8 inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              {codeMPersona.name}
             </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Tone:</label>
+            <Select
+              value={selectedPersonaId}
+              onValueChange={(value) => {
+                setSelectedPersonaId(value);
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                }
+                setAudioQueue([]);
+                setIsAudioPlaying(false);
+              }}
+            >
+              <SelectTrigger
+                id="persona-select"
+                className="h-8 text-xs bg-white dark:bg-[#2a3942] dark:text-white border border-gray-200 dark:border-[#3c4d57]"
+              >
+                <SelectValue placeholder="Tone..." />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white border border-gray-200 dark:border-[#3c4d57]">
+                {personas.map((persona) => (
+                  <SelectItem key={persona.id} value={persona.id}>
+                    {persona.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
       {/* Search bar - shown when Search is opened from menu */}
       {isSearchOpen && (
