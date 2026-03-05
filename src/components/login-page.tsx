@@ -11,7 +11,7 @@ import {
   GoogleAuthProvider,
   updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -171,12 +171,22 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      // Persist Google profile to Firestore (name from Google, phone empty)
-      await saveUserProfile(user.uid, {
-        name: user.displayName ?? '',
-        phone: '',
-        email: user.email ?? '',
-      });
+      // Merge with existing profile: never overwrite saved name/phone
+      const existingSnap = await getDoc(doc(db, 'users', user.uid));
+      const existing = existingSnap.exists() ? (existingSnap.data() as { name?: string; phone?: string }) : {};
+      const savedName = (existing.name ?? '').toString().trim();
+      const savedPhone = (existing.phone ?? '').toString().trim();
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          name: savedName || user.displayName || '',
+          phone: savedPhone,
+          email: user.email ?? '',
+          ...(existingSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code !== 'auth/popup-closed-by-user') {
