@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProfileSettingsPage } from '@/components/profile-settings-page';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Popover,
   PopoverContent,
@@ -181,6 +181,7 @@ export default function ClientPage() {
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const lastScrollTriggerRef = useRef({ count: 0, lastId: '' });
   /** STT transcript: use when sending so we don't rely on state (which can be stale) */
   const pendingSttTranscriptRef = useRef<string | null>(null);
@@ -842,25 +843,36 @@ export default function ClientPage() {
           }
         };
 
-        // Attempt to play
+        // Attempt to play (timeout unblocks queue if play() never resolves/rejects)
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
+        let settled = false;
+        const unblock = () => {
+          if (settled) return;
+          settled = true;
+          setIsAudioPlaying(false);
+          setAudioQueue((prev) => prev.slice(1));
+          if (audioRef.current) {
+            audioRef.current.src = '';
+            audioRef.current = null;
+          }
+        };
+        const timeout = setTimeout(unblock, 12000);
         playPromise
           .then(() => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
             setIsAudioPlaying(true);
           })
-          .catch((error) => {
-              console.error('Audio play() promise rejected:', error);
-            setIsAudioPlaying(false);
-            setAudioQueue((prev) => prev.slice(1));
-              if (audioRef.current) {
-                audioRef.current.src = '';
-                audioRef.current = null;
-              }
+          .catch(() => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            unblock();
           });
       }
-      } catch (error) {
-        console.error('Error creating audio element:', error);
+      } catch {
         setIsAudioPlaying(false);
         setAudioQueue((prev) => prev.slice(1));
       }
@@ -931,7 +943,7 @@ export default function ClientPage() {
   }
   
   return (
-    <div className="flex h-screen w-full bg-background">
+    <div ref={mainContentRef} className="flex h-screen w-full bg-background" tabIndex={-1}>
       {/* Sidebar - WhatsApp style - Hidden on mobile */}
       <div className="hidden md:flex w-14 bg-[#e9edef] dark:bg-[#202c33] border-r border-border flex-col items-center py-3 gap-3 flex-shrink-0">
         {/* Logo/Avatar at top */}
@@ -1921,9 +1933,20 @@ export default function ClientPage() {
 
     {/* Profile & Settings sheet (avatar = Profile tab, settings button = Settings tab) */}
     <Sheet open={isProfileSheetOpen} onOpenChange={setIsProfileSheetOpen}>
-      <SheetContent side="left" className="w-full sm:max-w-md flex flex-col p-0">
+      <SheetContent
+        side="left"
+        className="w-full sm:max-w-md flex flex-col p-0"
+        aria-describedby="profile-settings-description"
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          mainContentRef.current?.focus();
+        }}
+      >
         <SheetHeader className="px-6 pt-6 pb-2 border-b border-border">
           <SheetTitle>Profile & Settings</SheetTitle>
+          <SheetDescription id="profile-settings-description">
+            View your profile and manage app settings.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-hidden px-6 pb-6">
           <ProfileSettingsPage
