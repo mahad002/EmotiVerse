@@ -54,8 +54,6 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ProfileSettingsPage } from '@/components/profile-settings-page';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Popover,
   PopoverContent,
@@ -68,84 +66,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
 import HeroDashboard from '@/components/codem-dashboard';
+import { ChatSearchBar } from '@/features/chat/components/search-bar';
+import { ChatSidebar } from '@/features/chat/components/chat-sidebar';
+import { ChatHeader } from '@/features/chat/components/chat-header';
+import { ChatOverlays } from '@/features/chat/components/overlays';
+import { useChatSession } from '@/features/chat/hooks/use-chat-session';
+import { useChatAudio } from '@/features/chat/hooks/use-chat-audio';
+import { useChatInput } from '@/features/chat/hooks/use-chat-input';
+import {
+  getCharacterCapabilities,
+  isMahad,
+  isCodeM,
+} from '@/features/chat/lib/character-capabilities';
+import {
+  IMAGE_GENERATING_PLACEHOLDER_ID,
+  NOTIFICATION_MUTED_STORAGE_KEY,
+  REACTION_OPTIONS,
+  VOICE_WAVEFORM_BARS,
+  formatVoiceDuration,
+  type ChatData,
+  type Message,
+} from '@/features/chat/lib/chat-types';
 
-const MAHAD_CHARACTER_ID = 'character-1';
-const CODEM_CHARACTER_ID = 'character-3';
-const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
-const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
-
-const REACTION_OPTIONS = ['👍', '👎', '❤️', '😂', '🔥', '😮'];
-
-function formatVoiceDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-/** Static waveform bar heights for voice message (same for all for now) */
-const VOICE_WAVEFORM_BARS = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.5, 0.75, 0.6, 0.9, 0.5, 0.7, 0.6, 0.85, 0.5, 0.65, 0.7, 0.8, 0.5, 0.6];
-
-/** Play a short WhatsApp-like message notification sound (Web Audio API). */
-function playMessageNotificationSound() {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 800;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
-  } catch {
-    // ignore if AudioContext not supported or blocked
-  }
-}
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  isStreaming?: boolean;
-  imageDataUri?: string;
-  imageBase64?: string;
-  reaction?: string;
-  /** Voice message: audio data URI and duration in seconds */
-  audioDataUri?: string;
-  audioDurationSeconds?: number;
-}
-
-interface ChatData {
-  characterId: string;
-  messages: Message[];
-  lastMessage?: string;
-  lastMessageTime?: Date;
-}
-
-// Extend window type for SpeechRecognition (Web Speech API)
-declare global {
-  interface Window {
-    SpeechRecognition: new () => {
-      start(): void;
-      stop(): void;
-      continuous: boolean;
-      interimResults: boolean;
-      lang: string;
-      onstart: () => void;
-      onend: () => void;
-      onerror: (event: { error?: string }) => void;
-      onresult: (event: { results: Iterable<{ [0]: { transcript: string } }> }) => void;
-    };
-    webkitSpeechRecognition: Window['SpeechRecognition'];
-  }
-}
-
+/**
+ * Chat composition shell: selects character/persona/capabilities, wires feature hooks
+ * (useChatSession, useChatAudio, useChatInput), and composes ChatSidebar, ChatHeader,
+ * ChatSearchBar, ChatOverlays plus inline thread and composer.
+ */
 export default function ClientPage() {
   const { toast } = useToast();
   const [personas] = useState<Persona[]>(defaultPersonas);
@@ -154,31 +104,13 @@ export default function ClientPage() {
   );
   const [charactersList] = useState<Character[]>(characters);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>('');
-  
-  // Store messages separately for each chat
-  const [chats, setChats] = useState<Record<string, ChatData>>(() => {
-    const initialChats: Record<string, ChatData> = {};
-    characters.forEach((char) => {
-      initialChats[char.id] = {
-        characterId: char.id,
-        messages: [],
-      };
-    });
-    return initialChats;
+  const { chats, setChats, getMessages, clearChat, setMessageReaction, buildHistory } = useChatSession({
+    characterIds: charactersList.map((c) => c.id),
   });
-  
   const [userInput, setUserInput] = useState<string>('');
-  const messages = chats[selectedCharacterId]?.messages || [];
+  const messages = getMessages(selectedCharacterId);
 
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
-  const [audioQueue, setAudioQueue] = useState<string[]>([]);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-  const recognitionRef = useRef<InstanceType<Window['SpeechRecognition']> | null>(null);
-
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
   const [profileSheetTab, setProfileSheetTab] = useState<'profile' | 'settings'>('profile');
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
@@ -216,9 +148,6 @@ export default function ClientPage() {
   /** View contact (current character) dialog */
   const [isViewContactOpen, setIsViewContactOpen] = useState(false);
 
-  /** Previous message count to detect new incoming AI messages (for notification sound) */
-  const prevMessageCountRef = useRef(0);
-
   const searchQ = searchQuery.trim().toLowerCase();
   const displayMessages = searchQ
     ? messages.filter((m) => (m.text || '').toLowerCase().includes(searchQ))
@@ -232,32 +161,53 @@ export default function ClientPage() {
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceStartTimeRef = useRef<number>(0);
 
-  /** Which voice message is playing and progress 0–1 for playhead */
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [voicePlaybackProgress, setVoicePlaybackProgress] = useState(0);
-  const voicePlaybackRef = useRef<HTMLAudioElement | null>(null);
-
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const lastScrollTriggerRef = useRef({ count: 0, lastId: '' });
-  /** STT transcript: use when sending so we don't rely on state (which can be stale) */
-  const pendingSttTranscriptRef = useRef<string | null>(null);
+
+  const capabilities = selectedCharacterId ? getCharacterCapabilities(selectedCharacterId) : null;
+  const shouldPlayVoice = isVoiceEnabled || (capabilities?.supportsVoiceMode && inputMode === 'voice');
+  const {
+    audioQueue,
+    setAudioQueue,
+    isAudioPlaying,
+    setIsAudioPlaying,
+    audioRef,
+    playingVoiceId,
+    setPlayingVoiceId,
+    voicePlaybackProgress,
+    voicePlaybackRef,
+    handleVoicePlayPause,
+    resetNotificationTracking,
+  } = useChatAudio({
+    isVoiceEnabled,
+    shouldPlayVoice: !!shouldPlayVoice,
+    messages,
+    isNotificationMuted,
+  });
+
+  const { isSpeechSupported, isRecording, setRecording, recognitionRef, pendingSttTranscriptRef, createRecognition } = useChatInput({
+    onTranscript: (t) => setUserInput(t),
+    onError: () => {
+      toast({ title: 'Voice input', description: USER_MESSAGES.SPEECH_INPUT, variant: 'destructive' });
+    },
+  });
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || (personas.length > 0 ? personas[0] : null);
-  const selectedCharacter =
-    selectedCharacterId ? charactersList.find((c) => c.id === selectedCharacterId) : null;
-  const isCodeMSelected = selectedCharacterId === CODEM_CHARACTER_ID;
+  const selectedCharacter: Character | null =
+    selectedCharacterId ? (charactersList.find((c) => c.id === selectedCharacterId) ?? null) : null;
+  const isCodeMSelected = selectedCharacterId ? isCodeM(selectedCharacterId) : false;
   const activePersona = isCodeMSelected ? codeMPersona : selectedPersona;
 
   useEffect(() => {
-    if (selectedCharacterId && selectedCharacterId !== MAHAD_CHARACTER_ID) {
+    if (selectedCharacterId && !capabilities?.resetInputModeWhenLeaving) {
       setInputMode('chat');
     }
     setPendingImageDataUri(null);
     setPendingImageCaption('');
-  }, [selectedCharacterId]);
+  }, [selectedCharacterId, capabilities?.resetInputModeWhenLeaving]);
 
   useEffect(() => {
     if (inputMode === 'image') {
@@ -269,50 +219,6 @@ export default function ClientPage() {
       setPendingVoiceDurationSeconds(0);
     }
   }, [inputMode]);
-
-  // Create a fresh SpeechRecognition instance (Chrome doesn't allow reusing after first run)
-  const createRecognition = useCallback(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;  // Keep listening until user stops (longer window)
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onend = () => setIsRecording(false);
-    recognition.onerror = () => {
-      console.error('Speech recognition error');
-      toast({
-        title: 'Voice input',
-        description: USER_MESSAGES.SPEECH_INPUT,
-        variant: 'destructive',
-      });
-      setIsRecording(false);
-    };
-    recognition.onresult = (event: { results: Iterable<{ [0]: { transcript: string } }> }) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join(' ')
-        .trim();
-      if (transcript) {
-        setUserInput(transcript);
-        pendingSttTranscriptRef.current = transcript;
-      }
-    };
-    return recognition;
-  }, [toast]);
-
-  useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setIsSpeechSupported(true);
-    } else {
-      setIsSpeechSupported(false);
-      console.warn('Speech Recognition not supported in this browser.');
-    }
-  }, []);
 
   const ttsMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -582,53 +488,14 @@ export default function ClientPage() {
     },
   });
 
-  const setMessageReaction = (characterId: string, messageId: string, reaction: string) => {
-    setChats((prev) => ({
-      ...prev,
-      [characterId]: {
-        ...prev[characterId],
-        messages: (prev[characterId]?.messages || []).map((m) =>
-          m.id === messageId ? { ...m, reaction } : m
-        ),
-      },
-    }));
+  const handleSetMessageReaction = (characterId: string, messageId: string, reaction: string) => {
+    setMessageReaction(characterId, messageId, reaction);
     setReactionPickerMessageId(null);
   };
 
-  const handleVoicePlayPause = useCallback((msgId: string, audioDataUri: string, durationSec: number) => {
-    if (playingVoiceId === msgId) {
-      voicePlaybackRef.current?.pause();
-      voicePlaybackRef.current = null;
-      setPlayingVoiceId(null);
-      setVoicePlaybackProgress(0);
-      return;
-    }
-    if (voicePlaybackRef.current) {
-      voicePlaybackRef.current.pause();
-      voicePlaybackRef.current = null;
-    }
-    const audio = new Audio(audioDataUri);
-    voicePlaybackRef.current = audio;
-    audio.onended = () => {
-      setPlayingVoiceId(null);
-      setVoicePlaybackProgress(0);
-      voicePlaybackRef.current = null;
-    };
-    audio.ontimeupdate = () => {
-      if (durationSec > 0) setVoicePlaybackProgress(audio.currentTime / durationSec);
-    };
-    audio.onerror = () => {
-      setPlayingVoiceId(null);
-      setVoicePlaybackProgress(0);
-      voicePlaybackRef.current = null;
-    };
-    audio.play().catch(() => {});
-    setPlayingVoiceId(msgId);
-  }, [playingVoiceId]);
-
   const handleSendMessage = () => {
-    const isMahad = selectedCharacterId === MAHAD_CHARACTER_ID;
-    const isImageMode = isMahad && inputMode === 'image';
+    const isMahadCharacter = selectedCharacterId ? isMahad(selectedCharacterId) : false;
+    const isImageMode = isMahadCharacter && inputMode === 'image';
 
     if (pendingVoiceDataUri && selectedCharacterId) {
       const audioUri = pendingVoiceDataUri;
@@ -661,12 +528,11 @@ export default function ClientPage() {
           .then((res) => res.json())
           .then((data) => {
             const transcript = data?.text?.trim() || 'What did you say?';
-            const history = (chats[selectedCharacterId]?.messages || [])
-              .slice(-10)
-              .map((m) => ({
-                sender: m.sender === 'ai' ? selectedCharacter!.name : 'user',
-                text: m.text || (m.audioDataUri ? '[Voice message]' : ''),
-              })) as EmotionalConversationInput['history'];
+            const history = buildHistory(
+              selectedCharacterId,
+              selectedCharacter!.name,
+              getMessages(selectedCharacterId)
+            ) as EmotionalConversationInput['history'];
             setIsWaitingForVoiceResponse(true);
             conversationMutation.mutate({
               message: transcript,
@@ -718,12 +584,11 @@ export default function ClientPage() {
       };
       if (!selectedCharacter || !activePersona) return;
       const currentMessages = [...currentChatMessages, newUserMessage];
-      const history = currentMessages
-        .slice(-10)
-        .map(({ sender, text }) => ({
-          sender: sender === 'ai' ? selectedCharacter.name : 'user',
-          text,
-        })) as EmotionalConversationInput['history'];
+      const history = buildHistory(
+        selectedCharacterId,
+        selectedCharacter.name,
+        currentMessages
+      ) as EmotionalConversationInput['history'];
       setChats((prev) => ({
         ...prev,
         [selectedCharacterId]: {
@@ -735,7 +600,7 @@ export default function ClientPage() {
       }));
       setPendingImageDataUri(null);
       setPendingImageCaption('');
-      const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+      const respondWithVoice = capabilities?.supportsVoiceMode && inputMode === 'voice';
       if (respondWithVoice) setIsWaitingForVoiceResponse(true);
       conversationMutation.mutate({
         message: caption,
@@ -782,12 +647,11 @@ export default function ClientPage() {
     if (!selectedCharacter || !activePersona) return;
 
     const currentMessages = [...currentChatMessages, newUserMessage];
-    const history = currentMessages
-      .slice(-10)
-      .map(({ sender, text }) => ({
-        sender: sender === 'ai' ? selectedCharacter.name : 'user',
-        text,
-      })) as EmotionalConversationInput['history'];
+    const history = buildHistory(
+      selectedCharacterId,
+      selectedCharacter.name,
+      currentMessages
+    ) as EmotionalConversationInput['history'];
 
     // Update messages for current chat
     setChats((prev) => ({
@@ -801,7 +665,7 @@ export default function ClientPage() {
     }));
     setUserInput('');
 
-    const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+    const respondWithVoice = capabilities?.supportsVoiceMode && inputMode === 'voice';
     if (respondWithVoice) setIsWaitingForVoiceResponse(true);
     conversationMutation.mutate({
       message: effectiveText,
@@ -813,7 +677,7 @@ export default function ClientPage() {
   };
 
   const handleToggleRecording = async () => {
-    const isVoiceMode = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+    const isVoiceMode = capabilities?.supportsVoiceMode && inputMode === 'voice';
 
     if (isRecording) {
       if (isVoiceMode && voiceRecorderRef.current && voiceStreamRef.current) {
@@ -825,7 +689,7 @@ export default function ClientPage() {
         recognitionRef.current.stop();
         recognitionRef.current = null;
       }
-      setIsRecording(false);
+      setRecording(false);
       return;
     }
 
@@ -850,7 +714,7 @@ export default function ClientPage() {
         };
         recorder.start();
         voiceRecorderRef.current = recorder;
-        setIsRecording(true);
+        setRecording(true);
       } catch {
         toast({ title: 'Microphone', description: USER_MESSAGES.MIC_ACCESS, variant: 'destructive' });
       }
@@ -865,107 +729,6 @@ export default function ClientPage() {
   };
 
   useEffect(() => {
-    if (!isVoiceEnabled && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current = null;
-      setAudioQueue([]);
-      setIsAudioPlaying(false);
-    }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-        audioRef.current = null;
-      }
-    };
-  }, [isVoiceEnabled]);
-
-  useEffect(() => {
-    const shouldPlayVoice = isVoiceEnabled || (selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice');
-    if (shouldPlayVoice && !isAudioPlaying && audioQueue.length > 0) {
-      const nextAudioSrc = audioQueue[0];
-      
-      // Validate audio data URI
-      if (!nextAudioSrc || !nextAudioSrc.startsWith('data:audio/')) {
-        console.warn('Invalid audio data URI, skipping:', nextAudioSrc);
-        setAudioQueue((prev) => prev.slice(1));
-        return;
-      }
-
-      // Clean up previous audio if exists
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-        audioRef.current = null;
-      }
-
-      try {
-      audioRef.current = new Audio(nextAudioSrc);
-
-        // Set up event handlers before playing
-        audioRef.current.onended = () => {
-          setIsAudioPlaying(false);
-          setAudioQueue((prev) => prev.slice(1));
-          if (audioRef.current) {
-            audioRef.current.src = '';
-            audioRef.current = null;
-          }
-        };
-        
-        audioRef.current.onerror = (e) => {
-          const error = audioRef.current?.error;
-          console.error('Audio playback error:', {
-            code: error?.code,
-            message: error?.message,
-            error: error,
-            src: nextAudioSrc?.substring(0, 50) + '...'
-          });
-          setIsAudioPlaying(false);
-          setAudioQueue((prev) => prev.slice(1));
-          if (audioRef.current) {
-            audioRef.current.src = '';
-            audioRef.current = null;
-          }
-        };
-
-        // Attempt to play (timeout unblocks queue if play() never resolves/rejects)
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        let settled = false;
-        const unblock = () => {
-          if (settled) return;
-          settled = true;
-          setIsAudioPlaying(false);
-          setAudioQueue((prev) => prev.slice(1));
-          if (audioRef.current) {
-            audioRef.current.src = '';
-            audioRef.current = null;
-          }
-        };
-        const timeout = setTimeout(unblock, 12000);
-        playPromise
-          .then(() => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timeout);
-            setIsAudioPlaying(true);
-          })
-          .catch(() => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timeout);
-            unblock();
-          });
-      }
-      } catch {
-        setIsAudioPlaying(false);
-        setAudioQueue((prev) => prev.slice(1));
-      }
-    }
-  }, [audioQueue, isAudioPlaying, isVoiceEnabled, selectedCharacterId, inputMode]);
-
-  useEffect(() => {
     const count = messages.length;
     const lastId = count > 0 ? messages[count - 1].id : '';
     const prev = lastScrollTriggerRef.current;
@@ -978,25 +741,6 @@ export default function ClientPage() {
       }
     }
   }, [messages]);
-
-  /** Play notification sound when a new AI message arrives (unless muted). */
-  useEffect(() => {
-    if (isNotificationMuted) return;
-    const len = messages.length;
-    if (len === 0) {
-      prevMessageCountRef.current = 0;
-      return;
-    }
-    const last = messages[len - 1];
-    if (last.sender !== 'ai') {
-      prevMessageCountRef.current = len;
-      return;
-    }
-    if (len > prevMessageCountRef.current) {
-      playMessageNotificationSound();
-    }
-    prevMessageCountRef.current = len;
-  }, [messages, isNotificationMuted]);
 
   /** Persist notification mute preference */
   useEffect(() => {
@@ -1131,245 +875,55 @@ export default function ClientPage() {
         </button>
       </div>
 
-      {/* Chat List Sidebar - Hidden on mobile when in chat view */}
-      <div className={cn(
-        "w-full md:w-80 bg-[#ffffff] dark:bg-[#111b21] border-r border-border flex flex-col flex-shrink-0",
-        isMobileChatView && "hidden md:flex"
-      )}>
-        {/* Header */}
-        <div className="bg-[#e9edef] dark:bg-[#202c33] px-4 py-4 flex items-center justify-between">
-          <h2 className="text-[#111b21] dark:text-white text-xl font-semibold">Chats</h2>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
-              aria-label="New chat"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-            {/* Settings button - visible on mobile, hidden on desktop (desktop uses sidebar) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
-              aria-label="Settings"
-              onClick={() => {
-                setProfileSheetTab('settings');
-                setIsProfileSheetOpen(true);
-              }}
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden md:flex h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
-              aria-label="Menu"
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Chat List */}
-        <div className="flex-1 overflow-y-auto">
-          {charactersList.map((character) => {
-            const chat = chats[character.id];
-            const lastMessage = chat?.lastMessage || 'No messages yet';
-            const lastTime = chat?.lastMessageTime 
-              ? new Date(chat.lastMessageTime).toLocaleTimeString('en-US', { 
-                  hour: 'numeric', 
-                  minute: '2-digit',
-                  hour12: true 
-                })
-              : '';
-            
-            return (
-              <div
-                key={character.id}
-                onClick={() => handleCharacterSelect(character.id)}
-                className={cn(
-                  "px-4 py-3 cursor-pointer hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] border-l-4 transition-colors",
-                  selectedCharacterId === character.id 
-                    ? "bg-[#e9edef] dark:bg-[#2a3942] border-primary" 
-                    : "border-transparent"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12 flex-shrink-0">
-                    {/* <AvatarImage 
-                      src="https://inspirovix.s3.us-east-2.amazonaws.com/Inspirovix+-+11.png" 
-                      alt={character.name}
-                    /> */}
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {character.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-[#111b21] dark:text-white text-base font-medium truncate">
-                        {character.name}
-                      </h3>
-                      {lastTime && (
-                        <span className="text-[#667781] dark:text-muted-foreground text-xs flex-shrink-0 ml-2">
-                          {lastTime}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[#667781] dark:text-muted-foreground text-sm truncate">
-                      {lastMessage}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <ChatSidebar
+        characters={charactersList}
+        chats={chats}
+        selectedCharacterId={selectedCharacterId}
+        onSelectCharacter={handleCharacterSelect}
+        isMobileChatView={isMobileChatView}
+        onOpenSettings={() => {
+          setProfileSheetTab('settings');
+          setIsProfileSheetOpen(true);
+        }}
+      />
 
       {/* Main Chat Area */}
       {selectedCharacter ? (
       <div className={cn(
         "flex-1 flex flex-col",
-        selectedCharacterId === CODEM_CHARACTER_ID
+        capabilities?.useTerminalTheme
           ? "bg-[#f0fdf8] dark:bg-[#050e0a]"
           : "bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
         !isMobileChatView && "hidden md:flex"
-      )} style={selectedCharacterId === CODEM_CHARACTER_ID ? {} : {
+      )} style={capabilities?.useTerminalTheme ? {} : {
         backgroundImage: `url("data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23f0f0f0%22 fill-opacity=%220.4%22%3E%3Cpath d=%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
       }}>
-      {/* Header */}
-      <header className={cn(
-        "px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0",
-        selectedCharacterId === CODEM_CHARACTER_ID
-          ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-b border-emerald-200 dark:border-emerald-900/40 text-gray-900 dark:text-white"
-          : "bg-primary text-primary-foreground"
-      )}>
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Mobile: Show back button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10"
-            onClick={() => setIsMobileChatView(false)}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          
-          <Avatar className="h-10 w-10 cursor-pointer border-2 border-emerald-800/40">
-            <AvatarFallback className={cn(
-              "font-semibold",
-              selectedCharacterId === CODEM_CHARACTER_ID
-                ? "bg-emerald-950 text-emerald-400"
-                : "bg-white/20 text-primary-foreground"
-            )}>
-              {selectedCharacter.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => {
-            // Could open character/persona selector
-          }}>
-            <h2 className={cn(
-              "text-base font-medium truncate",
-              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-700 dark:text-emerald-300 font-mono" : "text-primary-foreground"
-            )}>{selectedCharacter.name}</h2>
-            <p className={cn(
-              "text-xs truncate opacity-90",
-              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-500 dark:text-emerald-600 font-mono opacity-100" : "text-primary-foreground/80"
-            )}>
-              {(conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse
-                ? selectedCharacterId === CODEM_CHARACTER_ID ? '> generating...' : 'Recording…'
-                : selectedCharacterId === CODEM_CHARACTER_ID ? '> Codestral-22B · Ready' : selectedCharacter.description}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
-                aria-label="Menu"
-              >
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                onClick={() => {
-                  setProfileSheetTab('settings');
-                  setIsProfileSheetOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsViewContactOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                View contact
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsSearchOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                <SearchIcon className="h-4 w-4 mr-2" />
-                Search
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsNotificationMuted((v) => !v);
-                }}
-                className="cursor-pointer"
-              >
-                {isNotificationMuted ? (
-                  <>
-                    <BellOff className="h-4 w-4 mr-2" />
-                    Unmute notifications
-                  </>
-                ) : (
-                  <>
-                    <Bell className="h-4 w-4 mr-2" />
-                    Mute notifications
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  if (!selectedCharacterId) return;
-                  prevMessageCountRef.current = 0;
-                  setChats((prev) => ({
-                    ...prev,
-                    [selectedCharacterId]: {
-                      characterId: selectedCharacterId,
-                      messages: [],
-                    },
-                  }));
-                  setSearchQuery('');
-                  setIsSearchOpen(false);
-                  toast({ title: 'Chat cleared', description: 'Messages cleared for this chat.' });
-                }}
-                className="cursor-pointer text-destructive focus:text-destructive"
-              >
-                Clear chat
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+      <ChatHeader
+        character={selectedCharacter}
+        capabilities={capabilities}
+        statusLine={
+          (conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse
+            ? (capabilities?.statusLabelPending ?? 'Recording…')
+            : (capabilities?.statusLabelReady ?? selectedCharacter.description)
+        }
+        onBack={() => setIsMobileChatView(false)}
+        onOpenSettings={() => {
+          setProfileSheetTab('settings');
+          setIsProfileSheetOpen(true);
+        }}
+        onViewContact={() => setIsViewContactOpen(true)}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        isNotificationMuted={isNotificationMuted}
+        onToggleMute={() => setIsNotificationMuted((v) => !v)}
+        onClearChat={() => {
+          if (!selectedCharacterId) return;
+          resetNotificationTracking();
+          clearChat(selectedCharacterId);
+          setSearchQuery('');
+          setIsSearchOpen(false);
+          toast({ title: 'Chat cleared', description: 'Messages cleared for this chat.' });
+        }}
+      />
 
       {/* Settings Dropdown - Hidden by default, shown on menu click */}
       <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
@@ -1414,29 +968,14 @@ export default function ClientPage() {
 
       {/* Search bar - shown when Search is opened from menu */}
       {isSearchOpen && (
-        <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-2 flex items-center gap-2 flex-shrink-0">
-          <SearchIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 shrink-0" />
-          <Input
-            placeholder="Search in this chat..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 h-9 bg-[#f0f2f5] dark:bg-[#2a3942] border-0 text-sm"
-            autoFocus
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            aria-label="Close search"
-            onClick={() => {
-              setIsSearchOpen(false);
-              setSearchQuery('');
-            }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <ChatSearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onClose={() => {
+            setIsSearchOpen(false);
+            setSearchQuery('');
+          }}
+        />
       )}
 
       {/* Messages Area - WhatsApp style */}
@@ -1444,10 +983,10 @@ export default function ClientPage() {
         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
           <div className={cn(
             "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col",
-            selectedCharacterId === CODEM_CHARACTER_ID ? "justify-start" : "justify-end"
+            capabilities?.messagesAlignStart ? "justify-start" : "justify-end"
           )}>
             {/* Code M: dashboard always pinned at top */}
-            {selectedCharacterId === CODEM_CHARACTER_ID && (
+            {capabilities?.showDashboardAboveMessages && (
               <div className="w-full mb-4 pb-4 border-b border-emerald-900/30">
                 <HeroDashboard />
               </div>
@@ -1455,7 +994,7 @@ export default function ClientPage() {
             {displayMessages.length === 0 && (
               <div className="flex-1 flex items-center justify-center p-8">
                 {messages.length === 0 ? (
-                  selectedCharacterId !== CODEM_CHARACTER_ID && (
+                  capabilities?.showEmptyStatePrompt && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Start a conversation with {selectedCharacter.name}
                     </p>
@@ -1501,7 +1040,7 @@ export default function ClientPage() {
                   <div
                     className={cn(
                       'relative rounded-lg px-2 py-1.5 text-[15px] break-words',
-                      selectedCharacterId === CODEM_CHARACTER_ID
+                      capabilities?.useTerminalTheme
                         ? msg.sender === 'user'
                           ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 rounded-tr-none border border-emerald-300 dark:border-emerald-800/60 font-mono text-sm'
                           : 'bg-white dark:bg-[#0d1a12] text-gray-800 dark:text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm shadow-sm'
@@ -1613,7 +1152,7 @@ export default function ClientPage() {
                         ) : (
                           <p className={cn(
                             "whitespace-pre-wrap leading-relaxed pb-0.5",
-                            selectedCharacterId === CODEM_CHARACTER_ID && msg.sender === 'ai' && "before:content-['▸_'] before:text-emerald-500"
+                            capabilities?.useTerminalTheme && msg.sender === 'ai' && "before:content-['▸_'] before:text-emerald-500"
                           )}>{msg.text}</p>
                         )}
                         {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && !msg.isStreaming && (
@@ -1623,7 +1162,7 @@ export default function ClientPage() {
                           )}>
                             <span className={cn(
                               'text-[11px] leading-none',
-                              selectedCharacterId === CODEM_CHARACTER_ID
+                              capabilities?.useTerminalTheme
                                 ? 'text-emerald-500 dark:text-emerald-800 font-mono'
                                 : 'text-gray-500 dark:text-gray-400'
                             )}>
@@ -1690,7 +1229,7 @@ export default function ClientPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-lg rounded-full hover:bg-gray-100 dark:hover:bg-[#3b4a54]"
-                                onClick={() => selectedCharacterId && setMessageReaction(selectedCharacterId, msg.id, emoji)}
+                                onClick={() => selectedCharacterId && handleSetMessageReaction(selectedCharacterId, msg.id, emoji)}
                               >
                                 {emoji}
                               </Button>
@@ -1726,12 +1265,12 @@ export default function ClientPage() {
       {/* Input Area */}
       <div className={cn(
         "px-4 py-4 flex-shrink-0 border-t",
-        selectedCharacterId === CODEM_CHARACTER_ID
+        capabilities?.useTerminalTheme
           ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-emerald-200 dark:border-emerald-900/40"
           : "bg-[#f0f0f0] dark:bg-[#111b21] border-gray-300 dark:border-[#2a3942]"
       )}>
         {/* Mahad-only: Chat / Voice / Image mode selector */}
-        {selectedCharacterId === MAHAD_CHARACTER_ID && (
+        {selectedCharacterId && isMahad(selectedCharacterId) && (
           <div className="flex items-center gap-1 mb-2">
             <Button
               type="button"
@@ -1766,7 +1305,7 @@ export default function ClientPage() {
           </div>
         )}
         {/* Image mode = generate only: quality selector */}
-        {selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'image' && (
+        {selectedCharacterId && isMahad(selectedCharacterId) && inputMode === 'image' && (
           <div className="flex items-center gap-1 mb-2">
             <Select value={imageGenQuality} onValueChange={(v: 'high' | 'fast') => setImageGenQuality(v)}>
               <SelectTrigger className="h-7 w-24 text-xs rounded-md">
@@ -1829,7 +1368,7 @@ export default function ClientPage() {
         )}
         <div className={cn(
           "flex items-center gap-1 rounded-full px-2 py-2 relative",
-          selectedCharacterId === CODEM_CHARACTER_ID
+          capabilities?.useTerminalTheme
             ? "bg-white dark:bg-[#0d1a12] border border-emerald-300 dark:border-emerald-900/60 rounded-xl text-gray-800 dark:text-emerald-200"
             : "bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white"
         )}>
@@ -2184,62 +1723,18 @@ export default function ClientPage() {
       </div>
       ) : null}
 
-    {/* Profile & Settings sheet (avatar = Profile tab, settings button = Settings tab) */}
-    <Sheet open={isProfileSheetOpen} onOpenChange={setIsProfileSheetOpen}>
-      <SheetContent
-        side="left"
-        className="w-full sm:max-w-md flex flex-col p-0"
-        aria-describedby="profile-settings-description"
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          mainContentRef.current?.focus();
-        }}
-      >
-        <SheetHeader className="px-6 pt-6 pb-2 border-b border-border">
-          <SheetTitle>Profile & Settings</SheetTitle>
-          <SheetDescription id="profile-settings-description">
-            View your profile and manage app settings.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 overflow-hidden px-6 pb-6">
-          <ProfileSettingsPage
-            key={profileSheetTab}
-            defaultTab={profileSheetTab}
-            onAfterSignOut={() => setIsProfileSheetOpen(false)}
-          />
-        </div>
-      </SheetContent>
-    </Sheet>
-
-    <Dialog open={!!viewingImageSrc} onOpenChange={(open) => !open && setViewingImageSrc(null)}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-2 border-0 bg-black/40 shadow-none overflow-visible [&>button]:bg-white/90 [&>button]:text-black [&>button]:rounded-full">
-        {viewingImageSrc && (
-          <img
-            src={viewingImageSrc}
-            alt=""
-            className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={isViewContactOpen} onOpenChange={setIsViewContactOpen}>
-      <DialogContent className="sm:max-w-md">
-        {selectedCharacter && (
-          <div className="flex flex-col items-center gap-4 pt-2">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                {selectedCharacter.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-center space-y-1">
-              <h3 className="font-semibold text-lg">{selectedCharacter.name}</h3>
-              <p className="text-sm text-muted-foreground">{selectedCharacter.description}</p>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    <ChatOverlays
+      isProfileSheetOpen={isProfileSheetOpen}
+      onProfileSheetOpenChange={setIsProfileSheetOpen}
+      profileSheetTab={profileSheetTab}
+      onAfterSignOut={() => setIsProfileSheetOpen(false)}
+      mainContentRef={mainContentRef}
+      viewingImageSrc={viewingImageSrc}
+      onViewingImageSrcChange={setViewingImageSrc}
+      isViewContactOpen={isViewContactOpen}
+      onViewContactOpenChange={setIsViewContactOpen}
+      selectedCharacter={selectedCharacter}
+    />
     </div>
   );
 }

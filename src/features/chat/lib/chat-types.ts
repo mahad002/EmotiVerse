@@ -1,0 +1,62 @@
+/**
+ * Chat domain types, constants, and pure helpers.
+ * Used by client-page and chat feature components/hooks.
+ */
+
+export const MAHAD_CHARACTER_ID = 'character-1';
+export const CODEM_CHARACTER_ID = 'character-3';
+export const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
+export const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
+
+export const REACTION_OPTIONS = ['👍', '👎', '❤️', '😂', '🔥', '😮'] as const;
+
+export interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'ai';
+  isStreaming?: boolean;
+  imageDataUri?: string;
+  imageBase64?: string;
+  reaction?: string;
+  /** Voice message: audio data URI and duration in seconds */
+  audioDataUri?: string;
+  audioDurationSeconds?: number;
+}
+
+export interface ChatData {
+  characterId: string;
+  messages: Message[];
+  lastMessage?: string;
+  lastMessageTime?: Date;
+}
+
+export function formatVoiceDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Static waveform bar heights for voice message (same for all for now) */
+export const VOICE_WAVEFORM_BARS = [
+  0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.5, 0.75, 0.6, 0.9, 0.5, 0.7, 0.6, 0.85, 0.5, 0.65, 0.7, 0.8, 0.5, 0.6,
+];
+
+/** Play a short WhatsApp-like message notification sound (Web Audio API). */
+export function playMessageNotificationSound(): void {
+  try {
+    const ctx = new (window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 800;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch {
+    // ignore if AudioContext not supported or blocked
+  }
+}
