@@ -1431,15 +1431,20 @@ export default function ClientPage() {
       {/* Messages Area - WhatsApp style */}
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
-          <div className="px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col justify-end">
+          <div className={cn(
+            "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col",
+            selectedCharacterId === CODEM_CHARACTER_ID ? "justify-start" : "justify-end"
+          )}>
+            {/* Code M: dashboard always pinned at top */}
+            {selectedCharacterId === CODEM_CHARACTER_ID && (
+              <div className="w-full mb-4 pb-4 border-b border-emerald-900/30">
+                <HeroDashboard />
+              </div>
+            )}
             {displayMessages.length === 0 && (
               <div className="flex-1 flex items-center justify-center p-8">
                 {messages.length === 0 ? (
-                  selectedCharacterId === 'character-3' ? (
-                    <div className="w-full">
-                      <HeroDashboard />
-                    </div>
-                  ) : (
+                  selectedCharacterId !== CODEM_CHARACTER_ID && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Start a conversation with {selectedCharacter.name}
                     </p>
