@@ -166,6 +166,9 @@ export default function ClientPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
 
+  /** True from sending a voice response until TTS is done (so "Recording" stays visible during TTS). */
+  const [isWaitingForVoiceResponse, setIsWaitingForVoiceResponse] = useState(false);
+
   /** Pending voice message (Voice mode: record then send) */
   const [pendingVoiceDataUri, setPendingVoiceDataUri] = useState<string | null>(null);
   const [pendingVoiceDurationSeconds, setPendingVoiceDurationSeconds] = useState(0);
@@ -370,6 +373,7 @@ export default function ClientPage() {
               lastMessageTime: new Date(),
             },
           }));
+          setIsWaitingForVoiceResponse(false);
         } catch (err) {
           console.error('AI voice response failed:', err);
           const fallbackMsg: Message = {
@@ -386,10 +390,12 @@ export default function ClientPage() {
               lastMessageTime: new Date(),
             },
           }));
+          setIsWaitingForVoiceResponse(false);
         }
         return;
       }
 
+      if (respondWithVoice) setIsWaitingForVoiceResponse(false);
       const chunks = data.response;
       for (const chunk of chunks) {
         const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
@@ -419,6 +425,7 @@ export default function ClientPage() {
       }
     },
     onError: (_error, variables, context) => {
+      setIsWaitingForVoiceResponse(false);
       toast({
         title: 'Something went wrong',
         description: USER_MESSAGES.CONVERSATION,
@@ -603,6 +610,7 @@ export default function ClientPage() {
                 sender: m.sender === 'ai' ? selectedCharacter!.name : 'user',
                 text: m.text || (m.audioDataUri ? '[Voice message]' : ''),
               })) as EmotionalConversationInput['history'];
+            setIsWaitingForVoiceResponse(true);
             conversationMutation.mutate({
               message: transcript,
               persona: selectedPersona.systemPrompt,
@@ -619,7 +627,24 @@ export default function ClientPage() {
     }
 
     if (isImageMode && userInput.trim()) {
-      generateImageMutation.mutate({ prompt: userInput.trim(), quality: imageGenQuality });
+      const prompt = userInput.trim();
+      if (selectedCharacterId) {
+        const newUserMessage: Message = {
+          id: 'user-img-prompt-' + Date.now(),
+          text: prompt,
+          sender: 'user',
+        };
+        setChats((prev) => ({
+          ...prev,
+          [selectedCharacterId]: {
+            ...prev[selectedCharacterId],
+            messages: [...(prev[selectedCharacterId]?.messages || []), newUserMessage],
+            lastMessage: prompt,
+            lastMessageTime: new Date(),
+          },
+        }));
+      }
+      generateImageMutation.mutate({ prompt, quality: imageGenQuality });
       setUserInput('');
       return;
     }
@@ -654,6 +679,7 @@ export default function ClientPage() {
       setPendingImageDataUri(null);
       setPendingImageCaption('');
       const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+      if (respondWithVoice) setIsWaitingForVoiceResponse(true);
       conversationMutation.mutate({
         message: caption,
         persona: selectedPersona.systemPrompt,
@@ -719,6 +745,7 @@ export default function ClientPage() {
     setUserInput('');
 
     const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+    if (respondWithVoice) setIsWaitingForVoiceResponse(true);
     conversationMutation.mutate({
       message: effectiveText,
       persona: selectedPersona.systemPrompt,
@@ -1148,7 +1175,7 @@ export default function ClientPage() {
           }}>
             <h2 className="text-base font-medium truncate text-primary-foreground">{selectedCharacter.name}</h2>
             <p className="text-xs opacity-90 truncate text-primary-foreground/80">
-              {selectedCharacter.description}
+              {(conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse ? 'Recording…' : selectedCharacter.description}
             </p>
           </div>
         </div>
@@ -1358,12 +1385,29 @@ export default function ClientPage() {
                     ) : (
                       <>
                         {(msg.imageDataUri || msg.imageBase64) && msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && (
-                          <div className="mb-1.5">
+                          <div className="mb-1.5 space-y-1.5">
                             <img
                               src={msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '')}
                               alt=""
                               className="max-w-full max-h-48 rounded object-contain"
                             />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                              onClick={() => {
+                                const src = msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '');
+                                if (!src) return;
+                                const a = document.createElement('a');
+                                a.href = src;
+                                a.download = `emotiverse-image-${msg.id}.png`;
+                                a.click();
+                              }}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Download
+                            </Button>
                           </div>
                         )}
                         {msg.id === IMAGE_GENERATING_PLACEHOLDER_ID ? (
