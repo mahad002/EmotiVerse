@@ -18,6 +18,15 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+function getDb() {
+  if (!db) {
+    throw new Error(
+      "Firebase not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_APP_ID in .env"
+    );
+  }
+  return db;
+}
+
 /**
  * Firestore Controller - Provides CRUD operations and common Firestore utilities
  */
@@ -33,7 +42,7 @@ class FirestoreController {
     docId: string
   ): Promise<T | null> {
     try {
-      const docRef = doc(db, collectionName, docId);
+      const docRef = doc(getDb(), collectionName, docId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
@@ -57,7 +66,7 @@ class FirestoreController {
     constraints?: QueryConstraint[]
   ): Promise<T[]> {
     try {
-      const collectionRef = collection(db, collectionName);
+      const collectionRef = collection(getDb(), collectionName);
       const q = constraints ? query(collectionRef, ...constraints) : collectionRef;
       const querySnapshot = await getDocs(q);
       
@@ -82,7 +91,7 @@ class FirestoreController {
     data: DocumentData
   ): Promise<string> {
     try {
-      const collectionRef = collection(db, collectionName);
+      const collectionRef = collection(getDb(), collectionName);
       const docRef = await addDoc(collectionRef, {
         ...data,
         createdAt: Timestamp.now(),
@@ -109,7 +118,7 @@ class FirestoreController {
     merge: boolean = false
   ): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, docId);
+      const docRef = doc(getDb(), collectionName, docId);
       await setDoc(
         docRef,
         {
@@ -136,7 +145,7 @@ class FirestoreController {
     data: Partial<DocumentData>
   ): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, docId);
+      const docRef = doc(getDb(), collectionName, docId);
       await updateDoc(docRef, {
         ...data,
         updatedAt: Timestamp.now(),
@@ -157,7 +166,7 @@ class FirestoreController {
     docId: string
   ): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, docId);
+      const docRef = doc(getDb(), collectionName, docId);
       await deleteDoc(docRef);
     } catch (error) {
       console.error(`Error deleting document from ${collectionName}:`, error);
@@ -182,7 +191,7 @@ class FirestoreController {
     ...additionalConstraints: QueryConstraint[]
   ): Promise<T[]> {
     try {
-      const collectionRef = collection(db, collectionName);
+      const collectionRef = collection(getDb(), collectionName);
       const q = query(
         collectionRef,
         where(field, operator, value),
@@ -237,7 +246,7 @@ class FirestoreController {
     docId: string
   ): Promise<boolean> {
     try {
-      const docRef = doc(db, collectionName, docId);
+      const docRef = doc(getDb(), collectionName, docId);
       const docSnap = await getDoc(docRef);
       return docSnap.exists();
     } catch (error) {

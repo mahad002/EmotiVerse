@@ -188,6 +188,16 @@ export default function LoginPage() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────
+  if (!auth || !db) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0b0f1a]">
+        <p className="text-center text-slate-400">
+          Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* to .env
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0b0f1a]">
       {/* Ambient glows */}

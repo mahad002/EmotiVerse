@@ -1,8 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
 // Firebase config from env (NEXT_PUBLIC_* so it's available on the client)
 const firebaseConfig = {
@@ -15,25 +15,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (requires env vars; add them to .env)
-if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
-  throw new Error(
-    "Missing Firebase config. Set NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_APP_ID in .env"
-  );
-}
-const app = initializeApp(firebaseConfig);
+const hasConfig =
+  firebaseConfig.apiKey && firebaseConfig.appId;
 
-// Initialize Analytics (only in browser)
+const app: FirebaseApp | null = hasConfig
+  ? initializeApp(firebaseConfig)
+  : null;
+
 let analytics: ReturnType<typeof getAnalytics> | undefined;
-if (typeof window !== "undefined") {
+if (app && typeof window !== "undefined") {
   analytics = getAnalytics(app);
 }
 
-// Initialize Firestore
-const db = getFirestore(app);
-
-// Initialize Auth
-const auth = getAuth(app);
+const db: Firestore | null = app ? getFirestore(app) : null;
+const auth: Auth | null = app ? getAuth(app) : null;
 
 export default app;
 export { db, analytics, auth };
