@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
-import LoginPage from '@/components/login-page';
 import CompleteProfileDialog from '@/components/complete-profile-dialog';
 
 interface UserProfile {
@@ -15,6 +15,7 @@ interface UserProfile {
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
@@ -60,7 +61,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <LoginPage />;
+    router.replace('/login');
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0f1a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+          <p className="text-sm text-slate-400">Redirecting…</p>
+        </div>
+      </div>
+    );
   }
 
   if (profileLoading) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -98,6 +99,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
 
@@ -234,9 +236,7 @@ export default function LoginPage() {
               {/* Header */}
               <div className="mb-8 text-center">
                 <div className="mb-3 inline-flex items-center gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
-                    <span className="text-lg font-bold text-white">E</span>
-                  </div>
+                  <img src="/logo.png" alt="EmotiVerse" className="h-10 w-10 rounded-2xl object-cover shadow-lg shadow-emerald-500/30" />
                   <span className="text-2xl font-bold text-white tracking-tight">
                     EmotiVerse
                   </span>
@@ -244,6 +244,13 @@ export default function LoginPage() {
                 <p className="text-sm text-slate-400">
                   {mode === 'login' ? 'Welcome back 👋' : 'Create your account'}
                 </p>
+                <a
+                  href="/landing"
+                  className="inline-flex items-center gap-1 mt-2 text-xs text-slate-500 hover:text-emerald-400 transition-colors"
+                >
+                  Explore EmotiVerse
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </a>
               </div>
 
               {/* Google button */}
