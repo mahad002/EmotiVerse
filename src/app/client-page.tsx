@@ -65,6 +65,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TTS_VOICE_STORAGE_KEY } from '@/config/tts-voices';
+import { USER_MESSAGES } from '@/config/user-messages';
 
 const MAHAD_CHARACTER_ID = 'character-1';
 const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
@@ -219,11 +220,11 @@ export default function ClientPage() {
     recognition.lang = 'en-US';
     recognition.onstart = () => setIsRecording(true);
     recognition.onend = () => setIsRecording(false);
-    recognition.onerror = (event: { error?: string }) => {
-      console.error('Speech recognition error:', event.error);
+    recognition.onerror = () => {
+      console.error('Speech recognition error');
       toast({
-        title: 'Speech Recognition Error',
-        description: `An error occurred: ${event.error}. Please check your microphone permissions.`,
+        title: 'Voice input',
+        description: USER_MESSAGES.SPEECH_INPUT,
         variant: 'destructive',
       });
       setIsRecording(false);
@@ -414,10 +415,10 @@ export default function ClientPage() {
         }
       }
     },
-    onError: (error, variables, context) => {
+    onError: (_error, variables, context) => {
       toast({
-        title: 'Error in Conversation',
-        description: error.message || 'AI could not respond.',
+        title: 'Something went wrong',
+        description: USER_MESSAGES.CONVERSATION,
         variant: 'destructive',
       });
       if (context?.aiMessageId) {
@@ -493,7 +494,7 @@ export default function ClientPage() {
         };
       });
     },
-    onError: (error) => {
+    onError: () => {
       const characterId = selectedCharacterId;
       if (characterId) {
         setChats((prev) => ({
@@ -507,8 +508,8 @@ export default function ClientPage() {
         }));
       }
       toast({
-        title: 'Image generation failed',
-        description: error.message,
+        title: 'Image',
+        description: USER_MESSAGES.IMAGE_GENERATION,
         variant: 'destructive',
       });
     },
@@ -608,7 +609,7 @@ export default function ClientPage() {
             } as EmotionalConversationInput & { respondWithVoice?: boolean });
           })
           .catch(() => {
-            toast({ title: 'Transcription failed', description: 'Could not transcribe voice message', variant: 'destructive' });
+            toast({ title: 'Voice message', description: USER_MESSAGES.TRANSCRIPTION, variant: 'destructive' });
           });
       }
       return;
@@ -763,8 +764,8 @@ export default function ClientPage() {
         recorder.start();
         voiceRecorderRef.current = recorder;
         setIsRecording(true);
-      } catch (err) {
-        toast({ title: 'Microphone error', description: err instanceof Error ? err.message : 'Could not access microphone', variant: 'destructive' });
+      } catch {
+        toast({ title: 'Microphone', description: USER_MESSAGES.MIC_ACCESS, variant: 'destructive' });
       }
       return;
     }

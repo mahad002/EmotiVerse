@@ -10,9 +10,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Text-to-speech API error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to generate speech';
     return NextResponse.json(
-      { error: message },
+      { error: 'Something went wrong. Please try again.' },
       { status: 500 }
     );
   }

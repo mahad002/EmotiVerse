@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Transcribe API error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Transcription failed' },
+      { error: 'Something went wrong. Please try again.' },
       { status: 500 }
     );
   }
