@@ -93,6 +93,16 @@ import {
 } from '@/features/chat/lib/chat-types';
 import { parseCodeMResponse } from '@/features/chat/lib/parse-codem-response';
 
+function renderInlineBold(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 /**
  * Chat composition shell: selects character/persona/capabilities, wires feature hooks
  * (useChatSession, useChatAudio, useChatInput), and composes ChatSidebar, ChatHeader,
@@ -1196,7 +1206,7 @@ export default function ClientPage() {
                                     capabilities?.useTerminalTheme && "before:content-['▸_'] before:text-emerald-500"
                                   )}
                                 >
-                                  {seg.text}
+                                  {renderInlineBold(seg.text)}
                                 </p>
                               ) : (
                                 <CodeMCodeBlock key={idx} segment={seg} />
