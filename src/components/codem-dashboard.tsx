@@ -2,328 +2,274 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Heart,
-  Sparkles,
-  MessageCircle,
-  ArrowRight,
-  Users,
-  Zap,
-  Shield,
-  TrendingUp,
-} from 'lucide-react';
+import { Code2, Cpu, Zap, GitBranch, Terminal, CheckCircle2, Users } from 'lucide-react';
 
-// ─── Dashboard frames (rotating content) ─────────────────────────────────────
+// ─── Rotating frames ───────────────────────────────────────────────────────────
 interface DashFrame {
-  headline: string[];
-  subtext: string;
-  bullets?: string[];
   icon: React.ElementType;
+  color: string;
+  bg: string;
+  label: string;
+  headline: string;
+  subtext: string;
+  chips?: string[];
 }
 
 const dashFrames: DashFrame[] = [
   {
-    icon: Heart,
-    headline: ['Emotion Isn\'t a Bug.', 'It\'s the Feature.'],
-    subtext: 'EmotiVerse lets you talk the way you actually feel.',
+    icon: Cpu,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10 border-emerald-500/20',
+    label: 'Powered By',
+    headline: 'Codestral-22B',
+    subtext: '22B parameter open coding model — one of the highest performers on HumanEval, scoring ~70–75%.',
+    chips: ['22B params', '~72% HumanEval', 'Apache 2.0'],
   },
   {
-    icon: MessageCircle,
-    headline: ['AI That Understands You — End to End'],
-    subtext:
-      'Your AI companions adapt in real time to your tone, mood, and context.',
+    icon: Code2,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10 border-teal-500/20',
+    label: 'What Code M Does',
+    headline: 'Code. Debug. Explain.',
+    subtext: 'Ask Code M to write, review, or fix code in any language. It thinks like a senior engineer.',
+    chips: ['Python', 'TypeScript', 'Rust', 'SQL'],
   },
   {
-    icon: Sparkles,
-    headline: ['Real Presence. Real Connection.'],
-    subtext: 'Built for conversations that actually mean something.',
-    bullets: ['8 emotional personas', 'Voice + image support', 'Always online, always listening'],
+    icon: GitBranch,
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
+    label: 'Built For Speed',
+    headline: 'Instant Code Context.',
+    subtext: 'Fill in the middle, complete functions, and understand entire codebases — all in real time.',
   },
 ];
 
-// ─── Stat cards (left column) ─────────────────────────────────────────────────
+// ─── Stats ─────────────────────────────────────────────────────────────────────
 const stats = [
-  { value: '8', label: 'Emotional personas' },
-  { value: '24/7', label: 'Always available' },
-  { value: 'Voice', label: 'Speech in & out' },
+  { icon: Cpu,         value: '22B',   label: 'Parameters' },
+  { icon: CheckCircle2, value: '~72%', label: 'HumanEval' },
+  { icon: Zap,         value: 'FIM',   label: 'Fill-in-Middle' },
 ];
 
-// ─── Floating badges (top-right decorations) ──────────────────────────────────
-const floatingBadges = [
-  { icon: Shield, text: 'Private & Secure', delay: '0s', position: 'top-16 right-6' },
-  { icon: TrendingUp, text: 'Emotionally Aware', delay: '0.5s', position: 'top-36 right-28' },
-  { icon: Zap, text: 'Instant Response', delay: '1s', position: 'bottom-28 right-10' },
-];
-
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────────────────────
 export default function HeroDashboard() {
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused]         = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const sectionRef = useRef<HTMLDivElement>(null);
 
-  // Parallax on mouse move
+  // Parallax
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!sectionRef.current) return;
       const rect = sectionRef.current.getBoundingClientRect();
       setMousePosition({
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100,
+        x: ((e.clientX - rect.left) / rect.width)  * 100,
+        y: ((e.clientY - rect.top)  / rect.height) * 100,
       });
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Auto-rotate frames
+  // Auto-rotate
   useEffect(() => {
     if (isPaused) return;
-    const interval = setInterval(() => {
-      setCurrentFrame((prev) => (prev + 1) % dashFrames.length);
-    }, 3000);
-    return () => clearInterval(interval);
+    const id = setInterval(() =>
+      setCurrentFrame(p => (p + 1) % dashFrames.length), 3200);
+    return () => clearInterval(id);
   }, [isPaused]);
 
-  const frame = dashFrames[currentFrame];
+  const frame     = dashFrames[currentFrame];
   const FrameIcon = frame.icon;
 
   return (
     <div ref={sectionRef} className="relative w-full">
-      {/* ── Floating badges (hidden on small screens) ─────────────────────── */}
-      <div className="hidden xl:block absolute inset-0 z-10 pointer-events-none">
-        {floatingBadges.map((badge, index) => (
-          <div
-            key={index}
-            className={`absolute ${badge.position} animate-float`}
-            style={{ animationDelay: badge.delay }}
-          >
-            <div className="backdrop-blur-md bg-white/80 dark:bg-slate-800/80 rounded-2xl px-4 py-3 shadow-xl border border-gray-200/50 dark:border-white/10 flex items-center gap-2 hover:scale-110 transition-transform duration-300">
-              <badge.icon className="w-4 h-4 text-emerald-500" />
-              <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                {badge.text}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* ── Single-column layout ─────────────────────────────────────────── */}
+      <div className="flex flex-col items-center gap-5 w-full py-2">
 
-      {/* ── Main layout ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-10 lg:gap-16">
-
-        {/* ── Left: Hero copy + stat cards ────────────────────────────────── */}
-        <div className="space-y-8">
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-4 py-2">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs font-semibold tracking-wide text-emerald-400 uppercase">
-              Emotional AI
-            </span>
-          </div>
-
-          {/* Main heading */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-            <span className="block text-gray-900 dark:text-white mb-1">
-              Conversations That{' '}
-              <span className="bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-400 text-transparent bg-clip-text">
-                Feel Real.
-              </span>
-            </span>
-            <span className="block text-gray-900 dark:text-white">
-              Connection That{' '}
-              <span className="bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-400 text-transparent bg-clip-text">
-                Lasts.
-              </span>
-            </span>
-          </h1>
-
-          {/* Description */}
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-lg leading-relaxed">
-            Choose a character, pick a persona, and experience AI conversations
-            with genuine emotional depth — with voice, images, and memory.
-          </p>
-
-          {/* CTA */}
-          <div className="flex flex-wrap items-center gap-4 pt-1">
-            <button className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-500/30 transition-transform duration-300 hover:scale-[1.05]">
-              <span>Start Chatting</span>
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </button>
-          </div>
-
-          {/* Stat cards row */}
-          <div className="flex items-center gap-4 pt-2">
-            {stats.map((stat, index) => (
-              <div
-                key={index}
-                className="backdrop-blur-md bg-white/70 dark:bg-slate-900/70 rounded-2xl border border-gray-200/60 dark:border-white/10 shadow-lg w-28 h-24 flex flex-col justify-center px-4"
-              >
-                <div className="text-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-400 text-transparent bg-clip-text">
-                  {stat.value}
-                </div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 font-medium leading-snug">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* ── Eyebrow ───────────────────────────────────────────────────── */}
+        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5">
+          <Terminal className="w-3 h-3 text-emerald-400" />
+          <span className="text-[11px] font-semibold tracking-widest text-emerald-400 uppercase">
+            Code M · Codestral-22B
+          </span>
         </div>
 
-        {/* ── Right: Animated Dashboard Mockup ────────────────────────────── */}
+        {/* ── Heading ───────────────────────────────────────────────────── */}
+        <div className="text-center space-y-1 px-4">
+          <h2 className="text-3xl font-bold text-white leading-tight">
+            Your AI{' '}
+            <span className="bg-gradient-to-r from-emerald-400 to-teal-400 text-transparent bg-clip-text">
+              Coding Partner.
+            </span>
+          </h2>
+          <p className="text-sm text-slate-400 max-w-xs mx-auto">
+            Powered by Codestral-22B — one of the best open coding models available.
+          </p>
+        </div>
+
+        {/* ── Animated mockup card ──────────────────────────────────────── */}
         <div
-          className="relative mt-4 lg:mt-0"
+          className="w-full"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
           style={{
-            transform: `translate(${(mousePosition.x - 50) * 0.015}px, ${(mousePosition.y - 50) * 0.015}px)`,
+            transform: `translate(${(mousePosition.x - 50) * 0.01}px, ${(mousePosition.y - 50) * 0.01}px)`,
             transition: 'transform 0.3s ease-out',
           }}
         >
-          {/* Glow behind card */}
-          <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-emerald-500/20 to-teal-500/20 blur-3xl scale-110" />
+          {/* Glow */}
+          <div className="absolute inset-x-0 mx-auto h-40 w-72 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
 
-          {/* Dashboard container */}
-          <div className="relative mx-auto max-w-md rounded-[32px] bg-slate-50 dark:bg-slate-950 p-[1px] shadow-[0_40px_120px_rgba(0,0,0,0.18)] dark:shadow-[0_40px_120px_rgba(52,211,153,0.08)] backdrop-blur-xl border border-white/20 dark:border-white/5 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98]">
+          {/* Card */}
+          <div className="relative rounded-[28px] bg-[#0a0f0d] border border-emerald-900/40 shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden">
 
-            {/* Browser chrome bar */}
-            <div className="mx-3 mt-3 h-9 rounded-2xl bg-white/40 dark:bg-slate-900 px-4 flex items-center justify-between shadow-sm border border-white/20 dark:border-white/5">
+            {/* Browser bar */}
+            <div className="px-4 py-2.5 flex items-center justify-between border-b border-white/5 bg-emerald-950/30">
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-red-400/80" />
-                <span className="h-2 w-2 rounded-full bg-amber-400/80" />
-                <span className="h-2 w-2 rounded-full bg-emerald-400/80" />
-                <span className="ml-3 text-[10px] uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 font-bold">
-                  EmotiVerse
+                <span className="h-2 w-2 rounded-full bg-red-400/70" />
+                <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+                <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+                <span className="ml-2.5 text-[9px] uppercase tracking-[0.2em] text-emerald-700 font-bold">
+                  Code M · Codestral
                 </span>
               </div>
-              <div className="h-4 w-28 rounded-full bg-gray-200/50 dark:bg-gray-700/50" />
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] text-emerald-500 font-semibold">Ready</span>
+              </div>
             </div>
 
-            {/* Animated content area */}
-            <div className="m-3 mb-4 rounded-[24px] bg-white dark:bg-slate-900 p-8 shadow-inner border border-white/20 dark:border-white/5 min-h-[300px] flex items-center justify-center relative overflow-hidden">
+            {/* Rotating content */}
+            <div className="overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-h-[210px] max-h-[270px] p-5">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentFrame}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute inset-0 p-8 flex flex-col items-center justify-center"
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col items-center gap-3 text-center w-full"
                 >
-                  <div className="text-center space-y-5 w-full">
-                    {/* Frame icon */}
+                  {/* Label */}
+                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
+                    {frame.label}
+                  </span>
+
+                  {/* Icon */}
+                  <motion.div
+                    initial={{ scale: 0.75, opacity: 0 }}
+                    animate={{ scale: 1,    opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl border ${frame.bg}`}
+                  >
+                    <FrameIcon className={`w-6 h-6 ${frame.color}`} />
+                  </motion.div>
+
+                  {/* Headline */}
+                  <motion.h3
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.08 }}
+                    className="text-xl font-bold text-white leading-snug"
+                  >
+                    {frame.headline}
+                  </motion.h3>
+
+                  {/* Subtext */}
+                  <motion.p
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.14 }}
+                    className="text-xs text-slate-400 leading-relaxed max-w-[240px]"
+                  >
+                    {frame.subtext}
+                  </motion.p>
+
+                  {/* Chips (inline tags) */}
+                  {frame.chips && (
                     <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.05 }}
-                      className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-teal-400/20 border border-emerald-500/20"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.22 }}
+                      className="flex flex-wrap justify-center gap-1.5"
                     >
-                      <FrameIcon className="w-6 h-6 text-emerald-500" />
-                    </motion.div>
-
-                    {/* Headlines */}
-                    <div className="space-y-1">
-                      {frame.headline.map((line, i) => (
-                        <motion.h3
+                      {frame.chips.map((chip, i) => (
+                        <span
                           key={i}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.1 * i, ease: 'easeOut' }}
-                          className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${frame.bg} ${frame.color}`}
                         >
-                          {line}
-                        </motion.h3>
+                          {chip}
+                        </span>
                       ))}
-                    </div>
-
-                    {/* Subtext */}
-                    <motion.p
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.15, ease: 'easeOut' }}
-                      className="text-gray-500 dark:text-gray-400 text-sm md:text-base leading-relaxed"
-                    >
-                      {frame.subtext}
-                    </motion.p>
-
-                    {/* Bullets (frame 3 only) */}
-                    {frame.bullets && (
-                      <div className="grid grid-cols-1 gap-2 pt-1">
-                        {frame.bullets.map((bullet, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
-                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50/60 dark:bg-slate-800 border border-emerald-100/60 dark:border-white/10"
-                          >
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                            <span className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">
-                              {bullet}
-                            </span>
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               </AnimatePresence>
 
-              {/* Decorative animated chart bars at bottom */}
-              <div className="absolute bottom-6 left-8 right-8 h-10 flex items-end justify-between gap-1 opacity-[0.15]">
-                {[...Array(12)].map((_, i) => (
+              {/* Chart bars */}
+              <div className="h-7 flex items-end gap-0.5 opacity-[0.08] mt-4">
+                {[...Array(18)].map((_, i) => (
                   <motion.div
                     key={i}
-                    animate={{ height: [20, 40, 30, 45, 25][i % 5] }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      repeatType: 'reverse',
-                      delay: i * 0.1,
-                    }}
+                    animate={{ height: [12, 28, 18, 34, 16][i % 5] }}
+                    transition={{ duration: 2.2, repeat: Infinity, repeatType: 'reverse', delay: i * 0.07 }}
                     className="w-full bg-emerald-400 rounded-t-sm"
                   />
                 ))}
               </div>
             </div>
 
-            {/* Status / dot indicator bar */}
-            <div className="mx-6 mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-bold">
-                  Online
+            {/* Status bar */}
+            <div className="px-5 py-2.5 flex items-center justify-between border-t border-white/5 bg-emerald-950/20">
+              <div className="flex items-center gap-1.5">
+                <Code2 className="w-3 h-3 text-emerald-500" />
+                <span className="text-[9px] uppercase tracking-widest text-emerald-500 font-bold">
+                  Codestral-22B
                 </span>
               </div>
-              {/* Progress dots */}
               <div className="flex gap-1">
-                {[...Array(dashFrames.length)].map((_, i) => (
+                {dashFrames.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => { setCurrentFrame(i); setIsPaused(true); }}
-                    className={`h-1 rounded-full transition-all duration-500 ${
-                      currentFrame === i
-                        ? 'w-4 bg-emerald-500'
-                        : 'w-1 bg-gray-300/40 dark:bg-gray-700'
+                    className={`h-1 rounded-full transition-all duration-400 ${
+                      currentFrame === i ? 'w-4 bg-emerald-500' : 'w-1 bg-white/15'
                     }`}
                   />
                 ))}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Users online pill */}
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white dark:bg-slate-800 border border-gray-200/60 dark:border-white/10 shadow-lg px-4 py-2">
-            <Users className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-              2 characters online
-            </span>
-            <span className="flex gap-0.5">
-              {[0, 1].map((i) => (
-                <span key={i} className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
-              ))}
-            </span>
+        {/* ── Stat pills ────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          {stats.map((s, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/20 px-3 py-1.5"
+            >
+              <s.icon className="w-3 h-3 text-emerald-400" />
+              <span className="text-[11px] font-bold text-emerald-300">{s.value}</span>
+              <span className="text-[11px] text-slate-500">{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Online pill ───────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-4 py-2">
+          <Users className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="text-xs font-semibold text-slate-300">Code M is online</span>
+          <div className="flex gap-0.5 ml-0.5">
+            {[0, 1].map(i => (
+              <span key={i} className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"
+                style={{ animationDelay: `${i * 0.3}s` }} />
+            ))}
           </div>
         </div>
+
       </div>
     </div>
   );
