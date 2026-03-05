@@ -191,8 +191,8 @@ export default function LoginPage() {
   if (!auth || !db) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0b0f1a]">
-        <p className="text-center text-slate-400">
-          Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* to .env
+        <p className="text-center text-slate-400 max-w-sm">
+          Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_APP_ID to .env in the project root, then restart the dev server (npm run dev).
         </p>
       </div>
     );

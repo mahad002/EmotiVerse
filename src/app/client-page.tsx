@@ -50,7 +50,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SettingsDialog } from '@/components/settings-dialog';
+import { ProfileSettingsPage } from '@/components/profile-settings-page';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Popover,
   PopoverContent,
@@ -150,7 +151,8 @@ export default function ClientPage() {
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const recognitionRef = useRef<InstanceType<Window['SpeechRecognition']> | null>(null);
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
+  const [profileSheetTab, setProfileSheetTab] = useState<'profile' | 'settings'>('profile');
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [isMobileChatView, setIsMobileChatView] = useState(false);
 
@@ -976,17 +978,30 @@ export default function ClientPage() {
           size="icon"
           className="h-12 w-12 rounded-full text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
           aria-label="Settings"
-          onClick={() => setIsSettingsOpen(true)}
+          onClick={() => {
+            setProfileSheetTab('settings');
+            setIsProfileSheetOpen(true);
+          }}
         >
           <Settings className="h-5 w-5" />
         </Button>
 
-        {/* User avatar at bottom */}
-        <Avatar className="h-12 w-12 cursor-pointer">
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            <User className="h-5 w-5" />
-          </AvatarFallback>
-        </Avatar>
+        {/* User avatar at bottom - opens Profile & Settings page */}
+        <button
+          type="button"
+          className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          aria-label="Profile and settings"
+          onClick={() => {
+            setProfileSheetTab('profile');
+            setIsProfileSheetOpen(true);
+          }}
+        >
+          <Avatar className="h-12 w-12 cursor-pointer">
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              <User className="h-5 w-5" />
+            </AvatarFallback>
+          </Avatar>
+        </button>
       </div>
 
       {/* Chat List Sidebar - Hidden on mobile when in chat view */}
@@ -1012,7 +1027,10 @@ export default function ClientPage() {
               size="icon"
               className="md:hidden h-9 w-9 text-[#54656f] hover:bg-[#dde3e7] hover:text-[#111b21] dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
               aria-label="Settings"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setProfileSheetTab('settings');
+                setIsProfileSheetOpen(true);
+              }}
             >
               <Settings className="h-5 w-5" />
             </Button>
@@ -1147,7 +1165,10 @@ export default function ClientPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem
-                onClick={() => setIsSettingsOpen(true)}
+                onClick={() => {
+                  setProfileSheetTab('settings');
+                  setIsProfileSheetOpen(true);
+                }}
                 className="cursor-pointer"
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -1897,7 +1918,21 @@ export default function ClientPage() {
       </div>
       )}
 
-    <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+    {/* Profile & Settings sheet (avatar = Profile tab, settings button = Settings tab) */}
+    <Sheet open={isProfileSheetOpen} onOpenChange={setIsProfileSheetOpen}>
+      <SheetContent side="left" className="w-full sm:max-w-md flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6 pb-2 border-b border-border">
+          <SheetTitle>Profile & Settings</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 overflow-hidden px-6 pb-6">
+          <ProfileSettingsPage
+            key={profileSheetTab}
+            defaultTab={profileSheetTab}
+            onAfterSignOut={() => setIsProfileSheetOpen(false)}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
     </div>
   );
 }
