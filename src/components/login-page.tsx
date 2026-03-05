@@ -192,7 +192,7 @@ export default function LoginPage() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0b0f1a]">
         <p className="text-center text-slate-400 max-w-sm">
-          Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_APP_ID to .env in the project root, then restart the dev server (npm run dev).
+          Firebase is not configured. On Vercel: add NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_APP_ID in Project Settings → Environment Variables, then redeploy. Locally: add them to .env and restart the dev server.
         </p>
       </div>
     );
