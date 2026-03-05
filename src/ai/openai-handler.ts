@@ -1,19 +1,19 @@
 'use server';
 
-import OpenAI from 'openai';
+// OpenAI - commented out; using LiteLLM for chat
+// import OpenAI from 'openai';
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import type { ChatMessage } from '@/ai/litellm-client';
+import { litellmChatCompletion } from '@/ai/litellm-client';
+import { refinePrompt } from '@/ai/flows/prompt-refiner';
 
 export interface OpenAIConversationInput {
   message: string;
   persona: string;
   characterName: string;
-  history?: Array<{
-    sender: string;
-    text: string;
-  }>;
+  history?: Array<{ sender: string; text: string }>;
+  imageDataUri?: string;
 }
 
 export interface OpenAIConversationOutput {
@@ -21,7 +21,7 @@ export interface OpenAIConversationOutput {
 }
 
 /**
- * Generate a conversational response using OpenAI
+ * Generate a conversational response using LiteLLM (OpenAI-compatible API).
  */
 export async function generateOpenAIResponse(
   input: OpenAIConversationInput
@@ -44,38 +44,58 @@ Your goal is to make the conversation feel as realistic and human as possible.
 
 Respond with a JSON object containing a "response" field that is an array of strings, where each string is a message bubble. Example: {"response": ["Hey there!", "How are you doing?"]}`;
 
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    {
-      role: 'system',
-      content: systemPrompt,
-    },
+  // Optional: refine prompt and compress context (agentic flow)
+  let messageToUse = input.message;
+  let compressedContext: string | undefined;
+  const { refinedPrompt, compressedContext: ctx } = await refinePrompt({
+    rawMessage: input.message,
+    history: input.history,
+    task: 'chat',
+  });
+  if (refinedPrompt) messageToUse = refinedPrompt;
+  if (ctx) compressedContext = ctx;
+
+  const systemContent = compressedContext
+    ? `${systemPrompt}\n\nRecent context (keep it in mind): ${compressedContext}`
+    : systemPrompt;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemContent },
   ];
 
   // Add conversation history
   if (input.history && input.history.length > 0) {
     for (const entry of input.history) {
       messages.push({
-        role: entry.sender === 'user' ? 'user' : 'assistant',
+        role: (entry.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: entry.text,
       });
     }
   }
 
-  // Add current message
-  messages.push({
-    role: 'user',
-    content: input.message,
-  });
+  // Add current message (text only or multimodal with image)
+  if (input.imageDataUri) {
+    const parts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [
+      { type: 'image_url', image_url: { url: input.imageDataUri } },
+    ];
+    if (messageToUse.trim()) {
+      parts.push({ type: 'text', text: messageToUse });
+    } else {
+      parts.push({ type: 'text', text: 'What do you see or notice in this image?' });
+    }
+    messages.push({ role: 'user', content: parts });
+  } else {
+    messages.push({ role: 'user', content: messageToUse });
+  }
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+  const content = await litellmChatCompletion({
     messages,
+    maxTokens: 1024,
     temperature: 0.7,
   });
 
-  const content = completion.choices[0]?.message?.content;
   if (!content) {
-    throw new Error('No response from OpenAI');
+    throw new Error('No response from LiteLLM');
   }
 
   try {

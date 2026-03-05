@@ -18,7 +18,7 @@ import { characters, type Character } from '@/config/characters';
 const EmotionalConversationInputSchema = z.object({
   message: z.string().describe('The latest message from the user.'),
   persona: z.string().describe('The emotional persona for the conversation.'),
-  characterId: z.string().describe('The character ID (both characters now use OpenAI).'),
+  characterId: z.string().describe('The character ID (both characters now use LiteLLM).'),
   history: z
     .array(
       z.object({
@@ -30,6 +30,7 @@ const EmotionalConversationInputSchema = z.object({
       'The recent conversation history. Use this to maintain context.'
     )
     .optional(),
+  imageDataUri: z.string().optional().describe('Optional image data URI (e.g. send photo for vision).'),
 });
 export type EmotionalConversationInput = z.infer<
   typeof EmotionalConversationInputSchema
@@ -51,10 +52,10 @@ export async function emotionalConversation(
 ): Promise<EmotionalConversationOutput> {
   const character = characters.find((c) => c.id === input.characterId) || characters[0];
   
-  // Both characters now use OpenAI
+  // Both characters now use LiteLLM
   const characterName = character.name;
   
-  // Normalize history sender names for OpenAI
+  // Normalize history sender names for LiteLLM
   const normalizedHistory = input.history?.map((entry) => ({
     sender: entry.sender === 'Mahad' || entry.sender === 'Sara' 
       ? characterName 
@@ -67,6 +68,7 @@ export async function emotionalConversation(
     persona: input.persona,
     characterName,
     history: normalizedHistory,
+    imageDataUri: input.imageDataUri,
   });
   
   // ========== GEMINI CODE - COMMENTED OUT FOR NOW ==========

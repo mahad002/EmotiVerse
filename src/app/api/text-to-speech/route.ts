@@ -3,13 +3,16 @@ import { textToSpeech, type TextToSpeechInput } from '@/ai/flows/text-to-speech'
 
 export async function POST(request: NextRequest) {
   try {
-    const body: TextToSpeechInput = await request.json();
-    const result = await textToSpeech(body);
+    const body = await request.json();
+    const input: TextToSpeechInput =
+      typeof body === 'string' ? body : { text: body?.text ?? '', voice: body?.voice };
+    const result = await textToSpeech(input);
     return NextResponse.json(result);
   } catch (error) {
     console.error('Text-to-speech API error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to generate speech';
     return NextResponse.json(
-      { error: 'Failed to generate speech' },
+      { error: message },
       { status: 500 }
     );
   }

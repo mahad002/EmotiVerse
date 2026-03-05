@@ -8,8 +8,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Emotional conversation API error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to process conversation';
     return NextResponse.json(
-      { error: 'Failed to process conversation' },
+      { error: message },
       { status: 500 }
     );
   }

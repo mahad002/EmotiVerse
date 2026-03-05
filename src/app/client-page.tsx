@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,6 +26,8 @@ import {
   Volume2,
   VolumeX,
   Mic,
+  Play,
+  Pause,
   MoreVertical,
   ChevronLeft,
   Plus,
@@ -61,12 +63,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { TTS_VOICE_STORAGE_KEY } from '@/config/tts-voices';
+
+const MAHAD_CHARACTER_ID = 'character-1';
+const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
+
+const REACTION_OPTIONS = ['👍', '👎', '❤️', '😂', '🔥', '😮'];
+
+function formatVoiceDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Static waveform bar heights for voice message (same for all for now) */
+const VOICE_WAVEFORM_BARS = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.5, 0.75, 0.6, 0.9, 0.5, 0.7, 0.6, 0.85, 0.5, 0.65, 0.7, 0.8, 0.5, 0.6];
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
+  imageDataUri?: string;
+  imageBase64?: string;
+  reaction?: string;
+  /** Voice message: audio data URI and duration in seconds */
+  audioDataUri?: string;
+  audioDurationSeconds?: number;
 }
 
 interface ChatData {
@@ -76,11 +99,21 @@ interface ChatData {
   lastMessageTime?: Date;
 }
 
-// Extend window type for SpeechRecognition
+// Extend window type for SpeechRecognition (Web Speech API)
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: new () => {
+      start(): void;
+      stop(): void;
+      continuous: boolean;
+      interimResults: boolean;
+      lang: string;
+      onstart: () => void;
+      onend: () => void;
+      onerror: (event: { error?: string }) => void;
+      onresult: (event: { results: Iterable<{ [0]: { transcript: string } }> }) => void;
+    };
+    webkitSpeechRecognition: Window['SpeechRecognition'];
   }
 }
 
@@ -115,14 +148,39 @@ export default function ClientPage() {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<InstanceType<Window['SpeechRecognition']> | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [isMobileChatView, setIsMobileChatView] = useState(false);
 
+  // Mahad-only input mode: chat | voice | image
+  const [inputMode, setInputMode] = useState<'chat' | 'voice' | 'image'>('chat');
+  const [pendingImageDataUri, setPendingImageDataUri] = useState<string | null>(null);
+  const [pendingImageCaption, setPendingImageCaption] = useState('');
+  const [imageSubMode, setImageSubMode] = useState<'photo' | 'generate'>('photo');
+  const [imageGenQuality, setImageGenQuality] = useState<'high' | 'fast'>('fast');
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+
+  /** Pending voice message (Voice mode: record then send) */
+  const [pendingVoiceDataUri, setPendingVoiceDataUri] = useState<string | null>(null);
+  const [pendingVoiceDurationSeconds, setPendingVoiceDurationSeconds] = useState(0);
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceStartTimeRef = useRef<number>(0);
+
+  /** Which voice message is playing and progress 0–1 for playhead */
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [voicePlaybackProgress, setVoicePlaybackProgress] = useState(0);
+  const voicePlaybackRef = useRef<HTMLAudioElement | null>(null);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const lastScrollTriggerRef = useRef({ count: 0, lastId: '' });
+  /** STT transcript: use when sending so we don't rely on state (which can be stale) */
+  const pendingSttTranscriptRef = useRef<string | null>(null);
 
   const selectedPersona =
     personas.find((p) => p.id === selectedPersonaId) || (personas.length > 0 ? personas[0] : null);
@@ -130,61 +188,83 @@ export default function ClientPage() {
     selectedCharacterId ? charactersList.find((c) => c.id === selectedCharacterId) : null;
 
   useEffect(() => {
+    if (selectedCharacterId && selectedCharacterId !== MAHAD_CHARACTER_ID) {
+      setInputMode('chat');
+    }
+    setPendingImageDataUri(null);
+    setPendingImageCaption('');
+  }, [selectedCharacterId]);
+
+  useEffect(() => {
+    if (inputMode === 'image') {
+      setPendingImageDataUri(null);
+      setPendingImageCaption('');
+    }
+    if (inputMode !== 'voice') {
+      setPendingVoiceDataUri(null);
+      setPendingVoiceDurationSeconds(0);
+    }
+  }, [inputMode]);
+
+  // Create a fresh SpeechRecognition instance (Chrome doesn't allow reusing after first run)
+  const createRecognition = useCallback(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;  // Keep listening until user stops (longer window)
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onend = () => setIsRecording(false);
+    recognition.onerror = (event: { error?: string }) => {
+      console.error('Speech recognition error:', event.error);
+      toast({
+        title: 'Speech Recognition Error',
+        description: `An error occurred: ${event.error}. Please check your microphone permissions.`,
+        variant: 'destructive',
+      });
+      setIsRecording(false);
+    };
+    recognition.onresult = (event: { results: Iterable<{ [0]: { transcript: string } }> }) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join(' ')
+        .trim();
+      if (transcript) {
+        setUserInput(transcript);
+        pendingSttTranscriptRef.current = transcript;
+      }
+    };
+    return recognition;
+  }, [toast]);
 
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       setIsSpeechSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsRecording(true);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        toast({
-          title: 'Speech Recognition Error',
-          description: `An error occurred: ${event.error}. Please check your microphone permissions.`,
-          variant: 'destructive',
-        });
-        setIsRecording(false);
-      };
-
-      recognition.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map((result) => result[0])
-          .map((result) => result.transcript)
-          .join('');
-        setUserInput(transcript);
-      };
-
-      recognitionRef.current = recognition;
     } else {
       setIsSpeechSupported(false);
       console.warn('Speech Recognition not supported in this browser.');
     }
-  }, [toast]);
+  }, []);
 
   const ttsMutation = useMutation({
     mutationFn: async (text: string) => {
+      const voice =
+        typeof window !== 'undefined' ? localStorage.getItem(TTS_VOICE_STORAGE_KEY) : null;
       const response = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(text),
+        body: JSON.stringify({ text, voice: voice || undefined }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate speech');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'Failed to generate speech');
       }
       
       return response.json();
@@ -210,7 +290,8 @@ export default function ClientPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to process conversation');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'Failed to process conversation');
       }
       
       return response.json();
@@ -237,6 +318,8 @@ export default function ClientPage() {
       const characterId = variables.characterId;
       if (!aiMessageId || !data.response) return;
 
+      const respondWithVoice = (variables as { respondWithVoice?: boolean }).respondWithVoice ?? isVoiceEnabled;
+
       // Remove streaming message
       setChats((prev) => ({
         ...prev,
@@ -245,6 +328,61 @@ export default function ClientPage() {
           messages: (prev[characterId]?.messages || []).filter((msg) => msg.id !== aiMessageId),
         },
       }));
+
+      if (respondWithVoice && data.response.length > 0) {
+        const fullText = data.response.join('');
+        const ttsVoice =
+          typeof window !== 'undefined' ? localStorage.getItem(TTS_VOICE_STORAGE_KEY) : null;
+        try {
+          const ttsRes = await fetch('/api/text-to-speech', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: fullText, voice: ttsVoice || undefined }),
+          });
+          if (!ttsRes.ok) throw new Error('TTS failed');
+          const ttsData = await ttsRes.json();
+          const audioDataUri = ttsData?.audioDataUri;
+          if (!audioDataUri) throw new Error('No audio');
+          const duration = await new Promise<number>((resolve, reject) => {
+            const audio = new Audio(audioDataUri);
+            audio.onloadedmetadata = () => resolve(audio.duration);
+            audio.onerror = () => reject(new Error('Audio load failed'));
+          });
+          const newAiMessage: Message = {
+            id: 'ai-' + Date.now() + '-voice',
+            text: fullText,
+            sender: 'ai',
+            audioDataUri,
+            audioDurationSeconds: Math.round(duration * 10) / 10,
+          };
+          setChats((prev) => ({
+            ...prev,
+            [characterId]: {
+              ...prev[characterId],
+              messages: [...(prev[characterId]?.messages || []), newAiMessage],
+              lastMessage: fullText,
+              lastMessageTime: new Date(),
+            },
+          }));
+        } catch (err) {
+          console.error('AI voice response failed:', err);
+          const fallbackMsg: Message = {
+            id: 'ai-' + Date.now(),
+            text: fullText,
+            sender: 'ai',
+          };
+          setChats((prev) => ({
+            ...prev,
+            [characterId]: {
+              ...prev[characterId],
+              messages: [...(prev[characterId]?.messages || []), fallbackMsg],
+              lastMessage: fullText,
+              lastMessageTime: new Date(),
+            },
+          }));
+        }
+        return;
+      }
 
       const chunks = data.response;
       for (const chunk of chunks) {
@@ -294,14 +432,243 @@ export default function ClientPage() {
     },
   });
 
+  const generateImageMutation = useMutation({
+    mutationFn: async (params: { prompt: string; quality: 'high' | 'fast' }) => {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: params.prompt, quality: params.quality }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate image');
+      }
+      return res.json() as Promise<{ imageUrl?: string; imageBase64?: string }>;
+    },
+    onMutate: () => {
+      const characterId = selectedCharacterId;
+      if (!characterId) return;
+      const placeholder: Message = {
+        id: IMAGE_GENERATING_PLACEHOLDER_ID,
+        text: 'Generating image...',
+        sender: 'ai',
+        isStreaming: true,
+      };
+      setChats((prev) => ({
+        ...prev,
+        [characterId]: {
+          ...prev[characterId],
+          messages: [...(prev[characterId]?.messages || []), placeholder],
+          lastMessage: placeholder.text,
+          lastMessageTime: new Date(),
+        },
+      }));
+    },
+    onSuccess: (data) => {
+      const characterId = selectedCharacterId;
+      if (!characterId) return;
+      const imageDataUri = data.imageBase64
+        ? `data:image/png;base64,${data.imageBase64}`
+        : data.imageUrl || '';
+      const newAiMessage: Message = {
+        id: 'ai-img-' + Date.now(),
+        text: "Here's what I made.",
+        sender: 'ai',
+        imageDataUri: imageDataUri || undefined,
+      };
+      setChats((prev) => {
+        const list = (prev[characterId]?.messages || []).filter(
+          (m) => m.id !== IMAGE_GENERATING_PLACEHOLDER_ID
+        );
+        return {
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: [...list, newAiMessage],
+            lastMessage: newAiMessage.text,
+            lastMessageTime: new Date(),
+          },
+        };
+      });
+    },
+    onError: (error) => {
+      const characterId = selectedCharacterId;
+      if (characterId) {
+        setChats((prev) => ({
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: (prev[characterId]?.messages || []).filter(
+              (m) => m.id !== IMAGE_GENERATING_PLACEHOLDER_ID
+            ),
+          },
+        }));
+      }
+      toast({
+        title: 'Image generation failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const setMessageReaction = (characterId: string, messageId: string, reaction: string) => {
+    setChats((prev) => ({
+      ...prev,
+      [characterId]: {
+        ...prev[characterId],
+        messages: (prev[characterId]?.messages || []).map((m) =>
+          m.id === messageId ? { ...m, reaction } : m
+        ),
+      },
+    }));
+    setReactionPickerMessageId(null);
+  };
+
+  const handleVoicePlayPause = useCallback((msgId: string, audioDataUri: string, durationSec: number) => {
+    if (playingVoiceId === msgId) {
+      voicePlaybackRef.current?.pause();
+      voicePlaybackRef.current = null;
+      setPlayingVoiceId(null);
+      setVoicePlaybackProgress(0);
+      return;
+    }
+    if (voicePlaybackRef.current) {
+      voicePlaybackRef.current.pause();
+      voicePlaybackRef.current = null;
+    }
+    const audio = new Audio(audioDataUri);
+    voicePlaybackRef.current = audio;
+    audio.onended = () => {
+      setPlayingVoiceId(null);
+      setVoicePlaybackProgress(0);
+      voicePlaybackRef.current = null;
+    };
+    audio.ontimeupdate = () => {
+      if (durationSec > 0) setVoicePlaybackProgress(audio.currentTime / durationSec);
+    };
+    audio.onerror = () => {
+      setPlayingVoiceId(null);
+      setVoicePlaybackProgress(0);
+      voicePlaybackRef.current = null;
+    };
+    audio.play().catch(() => {});
+    setPlayingVoiceId(msgId);
+  }, [playingVoiceId]);
+
   const handleSendMessage = () => {
-    if (!userInput.trim()) return;
+    const isMahad = selectedCharacterId === MAHAD_CHARACTER_ID;
+    const isImageMode = isMahad && inputMode === 'image';
+
+    if (pendingVoiceDataUri && selectedCharacterId) {
+      const audioUri = pendingVoiceDataUri;
+      const duration = pendingVoiceDurationSeconds;
+      const newMsg: Message = {
+        id: Date.now().toString() + '-voice',
+        text: '',
+        sender: 'user',
+        audioDataUri: audioUri,
+        audioDurationSeconds: duration,
+      };
+      setChats((prev) => ({
+        ...prev,
+        [selectedCharacterId]: {
+          ...prev[selectedCharacterId],
+          messages: [...(prev[selectedCharacterId]?.messages || []), newMsg],
+          lastMessage: 'Voice message',
+          lastMessageTime: new Date(),
+        },
+      }));
+      setPendingVoiceDataUri(null);
+      setPendingVoiceDurationSeconds(0);
+      const base64 = audioUri.includes(',') ? audioUri.split(',')[1] : '';
+      if (base64 && selectedCharacter && selectedPersona) {
+        fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audioBase64: base64, filename: 'audio.webm' }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            const transcript = data?.text?.trim() || 'What did you say?';
+            const history = (chats[selectedCharacterId]?.messages || [])
+              .slice(-10)
+              .map((m) => ({
+                sender: m.sender === 'ai' ? selectedCharacter!.name : 'user',
+                text: m.text || (m.audioDataUri ? '[Voice message]' : ''),
+              })) as EmotionalConversationInput['history'];
+            conversationMutation.mutate({
+              message: transcript,
+              persona: selectedPersona.systemPrompt,
+              characterId: selectedCharacterId,
+              history,
+              respondWithVoice: true,
+            } as EmotionalConversationInput & { respondWithVoice?: boolean });
+          })
+          .catch(() => {
+            toast({ title: 'Transcription failed', description: 'Could not transcribe voice message', variant: 'destructive' });
+          });
+      }
+      return;
+    }
+
+    if (isImageMode && userInput.trim()) {
+      generateImageMutation.mutate({ prompt: userInput.trim(), quality: imageGenQuality });
+      setUserInput('');
+      return;
+    }
+
+    if (pendingImageDataUri) {
+      const imageUri = pendingImageDataUri;
+      const caption = pendingImageCaption.trim() || 'What do you see?';
+      const currentChatMessages = chats[selectedCharacterId]?.messages || [];
+      const newUserMessage: Message = {
+        id: Date.now().toString() + '-user',
+        text: caption,
+        sender: 'user',
+        imageDataUri: imageUri,
+      };
+      if (!selectedCharacter || !selectedPersona) return;
+      const currentMessages = [...currentChatMessages, newUserMessage];
+      const history = currentMessages
+        .slice(-10)
+        .map(({ sender, text }) => ({
+          sender: sender === 'ai' ? selectedCharacter.name : 'user',
+          text,
+        })) as EmotionalConversationInput['history'];
+      setChats((prev) => ({
+        ...prev,
+        [selectedCharacterId]: {
+          ...prev[selectedCharacterId],
+          messages: currentMessages,
+          lastMessage: caption,
+          lastMessageTime: new Date(),
+        },
+      }));
+      setPendingImageDataUri(null);
+      setPendingImageCaption('');
+      const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+      conversationMutation.mutate({
+        message: caption,
+        persona: selectedPersona.systemPrompt,
+        characterId: selectedCharacterId,
+        history,
+        imageDataUri: imageUri,
+        respondWithVoice,
+      } as EmotionalConversationInput & { respondWithVoice?: boolean });
+      return;
+    }
+
+    // Use STT ref so speech transcript is sent even if React hasn't updated userInput yet
+    const effectiveText = (pendingSttTranscriptRef.current ?? userInput).trim();
+    if (pendingSttTranscriptRef.current) pendingSttTranscriptRef.current = null;
+    if (!effectiveText && !pendingImageDataUri) return;
 
     const currentChatMessages = chats[selectedCharacterId]?.messages || [];
     if (currentChatMessages.some((msg) => msg.isStreaming)) {
       const newUserMessage: Message = {
         id: Date.now().toString() + '-user',
-        text: userInput,
+        text: effectiveText,
         sender: 'user',
       };
       setChats((prev) => ({
@@ -309,7 +676,7 @@ export default function ClientPage() {
         [selectedCharacterId]: {
           ...prev[selectedCharacterId],
           messages: [...(prev[selectedCharacterId]?.messages || []), newUserMessage],
-          lastMessage: userInput,
+          lastMessage: effectiveText,
           lastMessageTime: new Date(),
         },
       }));
@@ -319,7 +686,7 @@ export default function ClientPage() {
 
     const newUserMessage: Message = {
       id: Date.now().toString() + '-user',
-      text: userInput,
+      text: effectiveText,
       sender: 'user',
     };
 
@@ -339,27 +706,72 @@ export default function ClientPage() {
       [selectedCharacterId]: {
         ...prev[selectedCharacterId],
         messages: currentMessages,
-        lastMessage: userInput,
+        lastMessage: effectiveText,
         lastMessageTime: new Date(),
       },
     }));
     setUserInput('');
 
+    const respondWithVoice = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
     conversationMutation.mutate({
-      message: userInput,
+      message: effectiveText,
       persona: selectedPersona.systemPrompt,
       characterId: selectedCharacterId,
       history,
-    });
+      respondWithVoice,
+    } as EmotionalConversationInput & { respondWithVoice?: boolean });
   };
 
-  const handleToggleRecording = () => {
-    if (!isSpeechSupported || !recognitionRef.current) return;
+  const handleToggleRecording = async () => {
+    const isVoiceMode = selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice';
+
     if (isRecording) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
+      if (isVoiceMode && voiceRecorderRef.current && voiceStreamRef.current) {
+        voiceRecorderRef.current.stop();
+        voiceStreamRef.current.getTracks().forEach((t) => t.stop());
+        voiceStreamRef.current = null;
+        voiceRecorderRef.current = null;
+      } else if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      setIsRecording(false);
+      return;
     }
+
+    if (isVoiceMode) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceStreamRef.current = stream;
+        voiceChunksRef.current = [];
+        voiceStartTimeRef.current = Date.now();
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+        const recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) voiceChunksRef.current.push(e.data); };
+        recorder.onstop = () => {
+          const durationSec = (Date.now() - voiceStartTimeRef.current) / 1000;
+          const blob = new Blob(voiceChunksRef.current, { type: mime });
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPendingVoiceDataUri(reader.result as string);
+            setPendingVoiceDurationSeconds(Math.round(durationSec * 10) / 10);
+          };
+          reader.readAsDataURL(blob);
+        };
+        recorder.start();
+        voiceRecorderRef.current = recorder;
+        setIsRecording(true);
+      } catch (err) {
+        toast({ title: 'Microphone error', description: err instanceof Error ? err.message : 'Could not access microphone', variant: 'destructive' });
+      }
+      return;
+    }
+
+    if (!isSpeechSupported) return;
+    const recognition = createRecognition();
+    if (!recognition) return;
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   useEffect(() => {
@@ -380,7 +792,8 @@ export default function ClientPage() {
   }, [isVoiceEnabled]);
 
   useEffect(() => {
-    if (isVoiceEnabled && !isAudioPlaying && audioQueue.length > 0) {
+    const shouldPlayVoice = isVoiceEnabled || (selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'voice');
+    if (shouldPlayVoice && !isAudioPlaying && audioQueue.length > 0) {
       const nextAudioSrc = audioQueue[0];
       
       // Validate audio data URI
@@ -449,10 +862,15 @@ export default function ClientPage() {
         setAudioQueue((prev) => prev.slice(1));
       }
     }
-  }, [audioQueue, isAudioPlaying, isVoiceEnabled]);
+  }, [audioQueue, isAudioPlaying, isVoiceEnabled, selectedCharacterId, inputMode]);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
+    const count = messages.length;
+    const lastId = count > 0 ? messages[count - 1].id : '';
+    const prev = lastScrollTriggerRef.current;
+    const shouldScrollToBottom = count > prev.count || (count > 0 && lastId !== prev.lastId);
+    lastScrollTriggerRef.current = { count, lastId };
+    if (shouldScrollToBottom && scrollAreaRef.current) {
       const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollElement) {
         scrollElement.scrollTop = scrollElement.scrollHeight;
@@ -827,7 +1245,8 @@ export default function ClientPage() {
                   'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
                   msg.sender === 'user' ? 'justify-end' : 'justify-start',
                   isConsecutive && 'mt-0.5',
-                  !isConsecutive && 'mt-2'
+                  !isConsecutive && 'mt-2',
+                  msg.reaction && 'pb-8'
                 )}
               >
                 {showAvatar ? (
@@ -839,51 +1258,187 @@ export default function ClientPage() {
                 ) : (
                   <div className="h-7 w-7 flex-shrink-0" />
                   )}
-                
+
+                {/* Wrapper so reaction badge and trigger sit outside the message bubble */}
+                <div className={cn(
+                  'group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] overflow-visible',
+                  msg.sender === 'user' && 'ml-auto'
+                )}>
                   <div
                     className={cn(
-                    'relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] rounded-lg px-2 py-1.5 text-[15px] break-words',
+                      'relative rounded-lg px-2 py-1.5 text-[15px] break-words',
                       msg.sender === 'user'
-                      ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm ml-auto dark:bg-[#005c4b] dark:text-white'
-                      : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
+                        ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
+                        : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
                     )}
                   >
-                    {msg.isStreaming && msg.text.length === 0 ? (
-                    <div className="flex items-center space-x-1.5 py-1">
-                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
-                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
-                      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
+                    {msg.audioDataUri ? (
+                      /* Voice message: play, waveform, duration, timestamp */
+                      <div className="flex items-center gap-2 py-1 min-w-[200px]">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 shrink-0 rounded-full bg-gray-200/80 hover:bg-gray-300 dark:bg-[#3b4a54] dark:hover:bg-[#4a5a64] text-gray-700 dark:text-gray-200"
+                          onClick={() => handleVoicePlayPause(msg.id, msg.audioDataUri!, msg.audioDurationSeconds ?? 0)}
+                          aria-label={playingVoiceId === msg.id ? 'Pause' : 'Play'}
+                        >
+                          {playingVoiceId === msg.id ? (
+                            <Pause className="h-5 w-5" />
+                          ) : (
+                            <Play className="h-5 w-5 ml-0.5" />
+                          )}
+                        </Button>
+                        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                          <div className="relative flex items-end gap-0.5 h-6">
+                            {VOICE_WAVEFORM_BARS.map((h, i) => (
+                              <div
+                                key={i}
+                                className={cn(
+                                  'w-1 rounded-full min-h-[4px] flex-1 max-w-[6px]',
+                                  msg.sender === 'user'
+                                    ? 'bg-[#005c4b]/50 dark:bg-white/50'
+                                    : 'bg-gray-400 dark:bg-gray-500'
+                                )}
+                                style={{ height: `${h * 100}%` }}
+                              />
+                            ))}
+                            {/* Playhead */}
+                            {playingVoiceId === msg.id && (
+                              <div
+                                className="absolute top-0 bottom-0 w-0.5 bg-primary rounded-full z-10 pointer-events-none"
+                                style={{ left: `${Math.min(100, voicePlaybackProgress * 100)}%` }}
+                              />
+                            )}
+                          </div>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {formatVoiceDuration(msg.audioDurationSeconds ?? 0)}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 shrink-0 self-end">
+                          {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        </span>
                       </div>
                     ) : (
-                    <p className="whitespace-pre-wrap leading-relaxed pb-0.5">{msg.text}</p>
+                      <>
+                        {(msg.imageDataUri || msg.imageBase64) && msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && (
+                          <div className="mb-1.5">
+                            <img
+                              src={msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '')}
+                              alt=""
+                              className="max-w-full max-h-48 rounded object-contain"
+                            />
+                          </div>
+                        )}
+                        {msg.id === IMAGE_GENERATING_PLACEHOLDER_ID ? (
+                          <div className="flex items-center gap-2 py-2 px-1">
+                            <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400 shrink-0" />
+                            <p className="text-sm text-gray-600 dark:text-gray-300">Generating image...</p>
+                          </div>
+                        ) : msg.isStreaming && msg.text.length === 0 ? (
+                          <div className="flex items-center space-x-1.5 py-1">
+                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
+                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
+                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap leading-relaxed pb-0.5">{msg.text}</p>
+                        )}
+                        {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && !msg.isStreaming && (
+                          <div className={cn(
+                            'flex items-center gap-1 mt-0.5 flex-wrap',
+                            msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                          )}>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-none">
+                              {new Date().toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true,
+                              })}
+                            </span>
+                            {msg.sender === 'user' && (
+                              <CheckCheck className="h-3 w-3 text-blue-500 flex-shrink-0 ml-0.5" />
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
-                  
-                     {!msg.isStreaming && msg.text && (
-                    <div className={cn(
-                      "flex items-center gap-1 mt-0.5",
-                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                    )}>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-none">
-                        {new Date().toLocaleTimeString('en-US', { 
-                          hour: 'numeric', 
-                          minute: '2-digit',
-                          hour12: true 
-                        })}
-                      </span>
-                      {msg.sender === 'user' && (
-                        <CheckCheck className="h-3 w-3 text-blue-500 flex-shrink-0 ml-0.5" />
+                  </div>
+
+                  {/* Reaction badge: received = bottom-left; sent = bottom-right, 80% outside */}
+                  {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && msg.reaction && (
+                    <div
+                      className={cn(
+                        'absolute bottom-0 translate-y-[80%] flex items-center justify-center min-w-[22px] h-5 px-1 rounded-full bg-gray-200/90 dark:bg-[#2a3942]/95 text-sm shadow-sm',
+                        msg.sender === 'user' ? 'right-2 left-auto' : 'left-2'
                       )}
+                      title="Reaction"
+                    >
+                      {msg.reaction}
+                    </div>
+                  )}
+
+                  {/* Reaction trigger: received = right center outside; sent = left center outside */}
+                  {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && !msg.isStreaming && (
+                    <div
+                      className={cn(
+                        'absolute top-1/2 -translate-y-1/2 transition-opacity',
+                        msg.sender === 'user'
+                          ? 'left-0 -translate-x-full pr-0.5'
+                          : 'right-0 translate-x-full pl-0.5',
+                        reactionPickerMessageId === msg.id
+                          ? 'opacity-100'
+                          : 'opacity-70 md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto'
+                      )}
+                    >
+                      <Popover open={reactionPickerMessageId === msg.id} onOpenChange={(open) => !open && setReactionPickerMessageId(null)}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 rounded-full bg-gray-200/80 hover:bg-gray-300 dark:bg-[#3b4a54] dark:hover:bg-[#4a5a64]"
+                            aria-label="React to message"
+                            onClick={(e) => { e.stopPropagation(); setReactionPickerMessageId((id) => (id === msg.id ? null : msg.id)); }}
+                          >
+                            <Smile className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1.5" align={msg.sender === 'user' ? 'end' : 'start'} side="top">
+                          <div className="flex gap-0.5">
+                            {REACTION_OPTIONS.map((emoji) => (
+                              <Button
+                                key={emoji}
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-lg rounded-full hover:bg-gray-100 dark:hover:bg-[#3b4a54]"
+                                onClick={() => selectedCharacterId && setMessageReaction(selectedCharacterId, msg.id, emoji)}
+                              >
+                                {emoji}
+                              </Button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                </div>
+
+                {msg.sender === 'user' && (
+                  <div className="relative h-7 w-7 flex-shrink-0">
+                    <Avatar className="h-7 w-7">
+                      <AvatarFallback className="bg-[#075e54] text-white text-xs">
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    {msg.audioDataUri && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+                        <Mic className="h-2.5 w-2.5 text-primary-foreground" />
                       </div>
                     )}
                   </div>
-                
-                  {msg.sender === 'user' && (
-                  <Avatar className="h-7 w-7 flex-shrink-0">
-                    <AvatarFallback className="bg-[#075e54] text-white text-xs">
-                      <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
+                )}
                 </div>
               );
             })}
@@ -892,11 +1447,119 @@ export default function ClientPage() {
       </div>
 
       {/* Input Area - WhatsApp style */}
-      {/* py-4 = padding for outer gray area (top/bottom spacing) */}
       <div className="bg-[#f0f0f0] dark:bg-[#111b21] px-4 py-4 flex-shrink-0 border-t border-gray-300 dark:border-[#2a3942]">
-        {/* py-2 = padding for inner white rounded input bar */}
+        {/* Mahad-only: Chat / Voice / Image mode selector */}
+        {selectedCharacterId === MAHAD_CHARACTER_ID && (
+          <div className="flex items-center gap-1 mb-2">
+            <Button
+              type="button"
+              variant={inputMode === 'chat' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 text-xs rounded-full"
+              onClick={() => setInputMode('chat')}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+              Chat
+            </Button>
+            <Button
+              type="button"
+              variant={inputMode === 'voice' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 text-xs rounded-full"
+              onClick={() => setInputMode('voice')}
+            >
+              <Mic className="h-3.5 w-3.5 mr-1.5" />
+              Voice
+            </Button>
+            <Button
+              type="button"
+              variant={inputMode === 'image' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 text-xs rounded-full"
+              onClick={() => setInputMode('image')}
+            >
+              <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+              Image
+            </Button>
+          </div>
+        )}
+        {/* Image mode = generate only: quality selector */}
+        {selectedCharacterId === MAHAD_CHARACTER_ID && inputMode === 'image' && (
+          <div className="flex items-center gap-1 mb-2">
+            <Select value={imageGenQuality} onValueChange={(v: 'high' | 'fast') => setImageGenQuality(v)}>
+              <SelectTrigger className="h-7 w-24 text-xs rounded-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fast">Fast</SelectItem>
+                <SelectItem value="high">High quality</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {/* Preview when user has picked an image (Send photo - available in Chat/Voice for both) */}
+        {pendingImageDataUri && (inputMode === 'chat' || inputMode === 'voice') && (
+          <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-white/80 dark:bg-[#2a3942]/80 border border-gray-200 dark:border-[#3b4a54]">
+            <img
+              src={pendingImageDataUri}
+              alt="Uploaded"
+              className="h-14 w-14 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-[#3b4a54]"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#111b21] dark:text-white">You have uploaded an image</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Add a caption below (optional) and tap Send</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              aria-label="Remove image"
+              onClick={() => { setPendingImageDataUri(null); setPendingImageCaption(''); }}
+            >
+              <span className="text-lg leading-none">&times;</span>
+            </Button>
+          </div>
+        )}
+        {/* Preview when user has recorded a voice message (Voice mode) */}
+        {pendingVoiceDataUri && inputMode === 'voice' && (
+          <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-white/80 dark:bg-[#2a3942]/80 border border-gray-200 dark:border-[#3b4a54]">
+            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Mic className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#111b21] dark:text-white">Voice message recorded</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {Math.floor(pendingVoiceDurationSeconds / 60)}:{(Math.floor(pendingVoiceDurationSeconds % 60)).toString().padStart(2, '0')} — Tap Send to send
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              aria-label="Delete recording"
+              onClick={() => { setPendingVoiceDataUri(null); setPendingVoiceDurationSeconds(0); }}
+            >
+              <span className="text-lg leading-none">&times;</span>
+            </Button>
+          </div>
+        )}
         <div className="flex items-center gap-1 bg-white dark:bg-[#2a3942] rounded-full px-2 py-2 text-[#111b21] dark:text-white relative">
-          {/* h-9 w-9 = button size (36px) - smaller icons for WhatsApp style */}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={imageInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => setPendingImageDataUri(reader.result as string);
+              reader.readAsDataURL(file);
+              e.target.value = '';
+            }}
+          />
           <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -1151,12 +1814,32 @@ export default function ClientPage() {
             <Smile className="h-5 w-5" />
           </Button>
           
-          {/* Text input - py-2 = padding inside textarea, max-h-24 = allows growth for multi-line (up to 96px) */}
+          {/* Send photo: always in Chat/Voice for both characters */}
+              {(inputMode === 'chat' || inputMode === 'voice') && selectedCharacterId && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 shrink-0 rounded-full"
+                  onClick={() => imageInputRef.current?.click()}
+                  aria-label="Send photo"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                </Button>
+              )}
               <Textarea
                 ref={textAreaRef}
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Type a message"
+                value={pendingImageDataUri ? pendingImageCaption : userInput}
+                onChange={(e) =>
+                  pendingImageDataUri ? setPendingImageCaption(e.target.value) : setUserInput(e.target.value)
+                }
+                placeholder={
+                  pendingImageDataUri
+                    ? 'Add a caption (optional)'
+                    : inputMode === 'image'
+                      ? 'Describe the image to generate...'
+                      : 'Type a message'
+                }
             className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 min-h-[40px]"
                 rows={1}
                 onKeyDown={(e) => {
@@ -1167,43 +1850,48 @@ export default function ClientPage() {
                 }}
               />
           
-          {/* Send button (when typing) or Mic button (when empty) - WhatsApp style */}
-          {/* h-9 w-9 = matches other icon buttons */}
-          {userInput.trim() ? (
+          {/* Mic (left) + Send (right when there's content); smooth transition */}
+          <div className="flex items-center gap-1 shrink-0">
             <Button
-              onClick={handleSendMessage}
-              disabled={conversationMutation.isPending}
+              type="button"
+              onClick={handleToggleRecording}
+              disabled={conversationMutation.isPending || (inputMode !== 'voice' && !isSpeechSupported)}
               size="icon"
-              className="h-9 w-9 shrink-0 bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground rounded-full transition-colors"
-            >
-              {conversationMutation.isPending ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-              <span className="sr-only">Send</span>
-            </Button>
-          ) : (
-              <Button
-                type="button"
-                onClick={handleToggleRecording}
-                disabled={!isSpeechSupported || conversationMutation.isPending}
-                size="icon"
-                variant="ghost"
+              variant="ghost"
               className={cn(
-                "h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54]",
-                isRecording && "text-red-500 dark:text-red-400"
+                'h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54] transition-colors',
+                isRecording && 'text-red-500 dark:text-red-400'
               )}
-                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+            >
+              <Mic
+                className={cn('h-5 w-5', isRecording && 'animate-pulse')}
+              />
+            </Button>
+            <div
+              className={cn(
+                'overflow-hidden transition-all duration-200 ease-out flex items-center justify-center',
+                userInput.trim() || pendingImageDataUri || pendingVoiceDataUri
+                  ? 'w-9 opacity-100'
+                  : 'w-0 opacity-0 min-w-0 pointer-events-none'
+              )}
+            >
+              <Button
+                onClick={handleSendMessage}
+                disabled={conversationMutation.isPending || generateImageMutation.isPending}
+                size="icon"
+                className="h-9 w-9 shrink-0 bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground rounded-full transition-colors"
+                aria-label="Send"
               >
-                <Mic
-                  className={cn(
-                    'h-5 w-5',
-                  isRecording && 'animate-pulse'
-                  )}
-                />
+                {conversationMutation.isPending || generateImageMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+                <span className="sr-only">Send</span>
               </Button>
-          )}
+            </div>
+          </div>
             </div>
           </div>
       </div>
