@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -23,8 +24,6 @@ import {
   Send,
   User,
   CheckCheck,
-  Volume2,
-  VolumeX,
   Mic,
   Play,
   Pause,
@@ -49,6 +48,10 @@ import {
   MapPin,
   Sparkles,
   Expand,
+  Bell,
+  BellOff,
+  Search as SearchIcon,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProfileSettingsPage } from '@/components/profile-settings-page';
@@ -71,6 +74,7 @@ import { USER_MESSAGES } from '@/config/user-messages';
 
 const MAHAD_CHARACTER_ID = 'character-1';
 const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
+const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
 
 const REACTION_OPTIONS = ['👍', '👎', '❤️', '😂', '🔥', '😮'];
 
@@ -82,6 +86,25 @@ function formatVoiceDuration(seconds: number): string {
 
 /** Static waveform bar heights for voice message (same for all for now) */
 const VOICE_WAVEFORM_BARS = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.5, 0.75, 0.6, 0.9, 0.5, 0.7, 0.6, 0.85, 0.5, 0.65, 0.7, 0.8, 0.5, 0.6];
+
+/** Play a short WhatsApp-like message notification sound (Web Audio API). */
+function playMessageNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 800;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch {
+    // ignore if AudioContext not supported or blocked
+  }
+}
 
 interface Message {
   id: string;
@@ -173,6 +196,31 @@ export default function ClientPage() {
 
   /** Image lightbox: src when open, null when closed */
   const [viewingImageSrc, setViewingImageSrc] = useState<string | null>(null);
+
+  /** Search in current chat */
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /** Mute message notification sound (persisted) */
+  const [isNotificationMuted, setIsNotificationMuted] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem(NOTIFICATION_MUTED_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  /** View contact (current character) dialog */
+  const [isViewContactOpen, setIsViewContactOpen] = useState(false);
+
+  /** Previous message count to detect new incoming AI messages (for notification sound) */
+  const prevMessageCountRef = useRef(0);
+
+  const searchQ = searchQuery.trim().toLowerCase();
+  const displayMessages = searchQ
+    ? messages.filter((m) => (m.text || '').toLowerCase().includes(searchQ))
+    : messages;
 
   /** Pending voice message (Voice mode: record then send) */
   const [pendingVoiceDataUri, setPendingVoiceDataUri] = useState<string | null>(null);
@@ -927,6 +975,34 @@ export default function ClientPage() {
     }
   }, [messages]);
 
+  /** Play notification sound when a new AI message arrives (unless muted). */
+  useEffect(() => {
+    if (isNotificationMuted) return;
+    const len = messages.length;
+    if (len === 0) {
+      prevMessageCountRef.current = 0;
+      return;
+    }
+    const last = messages[len - 1];
+    if (last.sender !== 'ai') {
+      prevMessageCountRef.current = len;
+      return;
+    }
+    if (len > prevMessageCountRef.current) {
+      playMessageNotificationSound();
+    }
+    prevMessageCountRef.current = len;
+  }, [messages, isNotificationMuted]);
+
+  /** Persist notification mute preference */
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFICATION_MUTED_STORAGE_KEY, String(isNotificationMuted));
+    } catch {
+      // ignore
+    }
+  }, [isNotificationMuted]);
+
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
@@ -1186,22 +1262,10 @@ export default function ClientPage() {
         </div>
         
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsVoiceEnabled((v) => !v)}
-            className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
-            aria-label={isVoiceEnabled ? 'Disable Voice' : 'Enable Voice'}
-          >
-            {isVoiceEnabled ? (
-              <Volume2 className="h-5 w-5" />
-            ) : (
-              <VolumeX className="h-5 w-5" />
-            )}
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
@@ -1224,7 +1288,7 @@ export default function ClientPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  // Could add more options here
+                  setIsViewContactOpen(true);
                 }}
                 className="cursor-pointer"
               >
@@ -1232,24 +1296,46 @@ export default function ClientPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  // Could add more options here
+                  setIsSearchOpen(true);
                 }}
                 className="cursor-pointer"
               >
+                <SearchIcon className="h-4 w-4 mr-2" />
                 Search
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  // Could add more options here
+                  setIsNotificationMuted((v) => !v);
                 }}
                 className="cursor-pointer"
               >
-                Mute notifications
+                {isNotificationMuted ? (
+                  <>
+                    <BellOff className="h-4 w-4 mr-2" />
+                    Unmute notifications
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4 mr-2" />
+                    Mute notifications
+                  </>
+                )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  // Could add more options here
+                  if (!selectedCharacterId) return;
+                  prevMessageCountRef.current = 0;
+                  setChats((prev) => ({
+                    ...prev,
+                    [selectedCharacterId]: {
+                      characterId: selectedCharacterId,
+                      messages: [],
+                    },
+                  }));
+                  setSearchQuery('');
+                  setIsSearchOpen(false);
+                  toast({ title: 'Chat cleared', description: 'Messages cleared for this chat.' });
                 }}
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
@@ -1292,17 +1378,48 @@ export default function ClientPage() {
               </div>
             </div>
 
+      {/* Search bar - shown when Search is opened from menu */}
+      {isSearchOpen && (
+        <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-2 flex items-center gap-2 flex-shrink-0">
+          <SearchIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 shrink-0" />
+          <Input
+            placeholder="Search in this chat..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 h-9 bg-[#f0f2f5] dark:bg-[#2a3942] border-0 text-sm"
+            autoFocus
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            aria-label="Close search"
+            onClick={() => {
+              setIsSearchOpen(false);
+              setSearchQuery('');
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Messages Area - WhatsApp style */}
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
           <div className="px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col justify-end">
-            {messages.length === 0 && (
+            {displayMessages.length === 0 && (
               <div className="text-center text-gray-500 dark:text-gray-400 py-10 flex-1 flex items-center justify-center">
-                <p className="text-sm">Start a conversation with {selectedCharacter.name}</p>
+                <p className="text-sm">
+                  {messages.length === 0
+                    ? `Start a conversation with ${selectedCharacter.name}`
+                    : 'No messages match your search.'}
+                </p>
           </div>
             )}
-            {messages.map((msg, index) => {
-              const prevMsg = index > 0 ? messages[index - 1] : null;
+            {displayMessages.map((msg, index) => {
+              const prevMsg = index > 0 ? displayMessages[index - 1] : null;
               const showAvatar = msg.sender === 'ai' && (prevMsg?.sender !== 'ai' || !prevMsg);
               const isConsecutive = prevMsg?.sender === msg.sender;
               
@@ -2031,6 +2148,24 @@ export default function ClientPage() {
             alt=""
             className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
           />
+        )}
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={isViewContactOpen} onOpenChange={setIsViewContactOpen}>
+      <DialogContent className="sm:max-w-md">
+        {selectedCharacter && (
+          <div className="flex flex-col items-center gap-4 pt-2">
+            <Avatar className="h-20 w-20">
+              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                {selectedCharacter.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-center space-y-1">
+              <h3 className="font-semibold text-lg">{selectedCharacter.name}</h3>
+              <p className="text-sm text-muted-foreground">{selectedCharacter.description}</p>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
