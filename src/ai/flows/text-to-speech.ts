@@ -34,10 +34,11 @@ export async function textToSpeech(
   }
 
   const model = process.env.LITELLM_TTS_MODEL || 'kokoro';
-  const voice =
+  let voice =
     (typeof input === 'object' && input && 'voice' in input && input.voice) ||
     process.env.LITELLM_TTS_VOICE ||
     'af_bella';
+  if (voice === 'af') voice = 'af_bella';
 
   const { audioBuffer, contentType } = await litellmTextToSpeech({
     text,

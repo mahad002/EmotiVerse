@@ -40,9 +40,9 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
   const [micLoading, setMicLoading] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
 
-  const [ttsLang, setTtsLang] = useState<string>('default');
+  const [ttsLang, setTtsLang] = useState<string>('a');
   const [ttsGender, setTtsGender] = useState<string>('f');
-  const [ttsVoiceId, setTtsVoiceId] = useState<string>('af');
+  const [ttsVoiceId, setTtsVoiceId] = useState<string>('af_bella');
 
   const loadStoredMic = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -62,7 +62,7 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
         setTtsVoiceId(stored);
         const voice = KOKORO_VOICES.find((v) => v.id === stored);
         if (voice) {
-          setTtsLang(voice.lang === 'default' ? 'default' : voice.lang);
+          setTtsLang(voice.lang);
           setTtsGender(voice.gender);
         }
       }
@@ -72,7 +72,6 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
   }, []);
 
   const genderOptions = useMemo(() => {
-    if (ttsLang === 'default') return [];
     const voices = KOKORO_VOICES.filter((v) => v.lang === ttsLang);
     const genders = new Set(voices.map((v) => v.gender));
     const opts: { value: string; label: string }[] = [];
@@ -82,13 +81,7 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
   }, [ttsLang]);
 
   const voiceOptions = useMemo(() => {
-    if (ttsLang === 'default') {
-      return KOKORO_VOICES.filter((v) => v.lang === 'default');
-    }
-    let list = KOKORO_VOICES.filter((v) => v.lang === ttsLang);
-    if (ttsGender && ttsGender !== 'mixed') {
-      list = list.filter((v) => v.gender === ttsGender);
-    }
+    const list = KOKORO_VOICES.filter((v) => v.lang === ttsLang && v.gender === ttsGender);
     return list;
   }, [ttsLang, ttsGender]);
 
@@ -144,16 +137,6 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
 
   const handleTtsLangChange = (value: string) => {
     setTtsLang(value);
-    if (value === 'default') {
-      setTtsVoiceId('af');
-      setTtsGender('f');
-      try {
-        localStorage.setItem(TTS_VOICE_STORAGE_KEY, 'af');
-      } catch {
-        // ignore
-      }
-      return;
-    }
     const voices = KOKORO_VOICES.filter((v) => v.lang === value);
     const firstGender = voices[0]?.gender ?? 'f';
     setTtsGender(firstGender);
@@ -310,7 +293,7 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
               </Select>
             </div>
           )}
-          <div className={cn('space-y-1', ttsLang === 'default' && 'sm:col-span-2')}>
+          <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Voice</label>
             <Select value={ttsVoiceId} onValueChange={handleTtsVoiceChange}>
               <SelectTrigger className="w-full">
