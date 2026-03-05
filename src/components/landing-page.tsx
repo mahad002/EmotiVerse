@@ -156,13 +156,26 @@ export default function LandingPage() {
 
   const handleCTA = () => router.push('/login');
 
-  // Override global overflow:hidden (set by chat app CSS) so this page scrolls
   useEffect(() => {
+    // The global CSS locks html/body overflow:hidden for the chat app.
+    // Override it here so the landing page can scroll normally.
     document.documentElement.style.overflow = 'auto';
     document.body.style.overflow = 'auto';
+
+    // Force dark mode class and background color so no white shows through
+    const html = document.documentElement;
+    const body = document.body;
+    const hadDark = html.classList.contains('dark');
+    const oldBg = body.style.backgroundColor;
+
+    if (!hadDark) html.classList.add('dark');
+    body.style.backgroundColor = '#07090f';
+
     return () => {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
+      if (!hadDark) html.classList.remove('dark');
+      body.style.backgroundColor = oldBg;
     };
   }, []);
 
@@ -212,7 +225,7 @@ export default function LandingPage() {
       </header>
 
       {/* ─── Hero ────────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
         {/* Background glow orbs */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-gradient-to-br from-violet-600/20 via-fuchsia-600/10 to-transparent blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
@@ -282,68 +295,78 @@ export default function LandingPage() {
             transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="relative w-full max-w-3xl mt-4"
           >
-            {/* Glow behind card */}
-            <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-violet-500/30 via-fuchsia-500/20 to-transparent blur-xl" />
+            {/* Glow behind card - slightly deeper for cinematic feel */}
+            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-violet-600/40 via-fuchsia-600/20 to-transparent blur-2xl" />
 
-            <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-[#0e1117]">
-              {/* Browser chrome bar */}
-              <div className="flex items-center gap-1.5 px-4 py-3 bg-[#0e1117] border-b border-white/5">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
-                <span className="mx-auto text-[10px] text-gray-500 font-mono tracking-widest uppercase">EmotiVerse · Preview</span>
-              </div>
-
-              {/* Video */}
-              <div className="relative aspect-video bg-black">
-                <video
-                  ref={videoRef}
-                  src="/intro.mp4"
-                  poster="/intro.gif"
-                  loop
-                  playsInline
-                  autoPlay
-                  muted={isMuted}
-                  className="w-full h-full object-cover"
-                  onPlay={() => setVideoPlaying(true)}
-                  onPause={() => setVideoPlaying(false)}
-                />
+            <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black flex flex-col">
+              {/* Main Wrapper with equal vertical padding for cinematic bars */}
+              <div className="relative w-full py-14 flex flex-col items-center justify-center">
                 
-                {/* Video Controls Overlay (Bottom Right) */}
-                <div className="absolute bottom-4 right-4 flex items-center gap-2 z-20">
-                  <button
-                    onClick={handlePlayVideo}
-                    className="flex items-center justify-center w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all"
-                  >
-                    {videoPlaying ? (
-                      <Pause className="w-4 h-4 text-white fill-white" />
-                    ) : (
-                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
-                    )}
-                  </button>
-                  <button
-                    onClick={handleMuteToggle}
-                    className="flex items-center justify-center w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all"
-                  >
-                    {isMuted ? (
-                      <VolumeX className="w-4 h-4 text-white" />
-                    ) : (
-                      <Volume2 className="w-4 h-4 text-white" />
-                    )}
-                  </button>
+                {/* Browser chrome bar - Absolutely positioned within the top bar space */}
+                <div className="absolute top-0 inset-x-0 h-14 flex items-center gap-3 px-6 z-20">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">System Status: Online</span>
+                  </div>
+                  <div className="h-3 w-[1px] bg-white/10 mx-1" />
+                  <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">EmotiVerse Preview</span>
+                  <div className="ml-auto flex items-center gap-4 opacity-40">
+                    <span className="text-[9px] text-gray-400 font-mono tabular-nums uppercase tracking-tighter">LOC: 34.0522° N, 118.2437° W</span>
+                    <span className="text-[9px] text-gray-400 font-mono tracking-tighter uppercase">v1.0.4-STABLE</span>
+                  </div>
                 </div>
 
-                {/* Main Play overlay (only if paused and not by manual toggle) */}
-                {!videoPlaying && (
-                  <button
-                    onClick={handlePlayVideo}
-                    className="absolute inset-0 flex items-center justify-center group"
-                  >
-                    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 group-hover:bg-white/20 transition-all group-hover:scale-110">
-                      <Play className="w-7 h-7 text-white fill-white ml-1" />
-                    </div>
-                  </button>
-                )}
+                {/* Video container - Guaranteed aspect-video for perfect fit */}
+                <div className="w-full relative aspect-video">
+                  <video
+                    ref={videoRef}
+                    src="/intro.mp4"
+                    poster="/intro.gif"
+                    loop
+                    playsInline
+                    autoPlay
+                    muted={isMuted}
+                    className="w-full h-full object-cover"
+                    onPlay={() => setVideoPlaying(true)}
+                    onPause={() => setVideoPlaying(false)}
+                  />
+                  
+                  {/* Video Controls Overlay (Bottom Right) */}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-2 z-30">
+                    <button
+                      onClick={handlePlayVideo}
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all"
+                    >
+                      {videoPlaying ? (
+                        <Pause className="w-4 h-4 text-white fill-white" />
+                      ) : (
+                        <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleMuteToggle}
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-4 h-4 text-white" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 text-white" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Main Play overlay */}
+                  {!videoPlaying && (
+                    <button
+                      onClick={handlePlayVideo}
+                      className="absolute inset-0 flex items-center justify-center group z-20"
+                    >
+                      <div className="flex items-center justify-center w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 group-hover:bg-white/20 transition-all group-hover:scale-110">
+                        <Play className="w-7 h-7 text-white fill-white ml-1" />
+                      </div>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
