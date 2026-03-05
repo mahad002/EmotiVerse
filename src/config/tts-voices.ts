@@ -30,3 +30,12 @@ export const KOKORO_VOICES: KokoroVoice[] = [
 ];
 
 export const TTS_VOICE_STORAGE_KEY = 'emotiverse_tts_voice';
+
+const VALID_VOICE_IDS = new Set(KOKORO_VOICES.map((v) => v.id));
+const DEFAULT_VOICE_ID = 'af_bella';
+
+/** Returns a valid Kokoro voice ID (use this when reading from localStorage to avoid removed voices like hf_kavya). */
+export function getValidTtsVoice(stored: string | null | undefined): string {
+  if (stored && VALID_VOICE_IDS.has(stored)) return stored;
+  return DEFAULT_VOICE_ID;
+}

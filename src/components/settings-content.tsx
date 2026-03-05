@@ -17,6 +17,7 @@ import {
   KOKORO_LANGUAGES,
   KOKORO_VOICES,
   TTS_VOICE_STORAGE_KEY,
+  getValidTtsVoice,
 } from '@/config/tts-voices';
 
 const MIC_STORAGE_KEY = 'emotiverse_mic_device_id';
@@ -58,13 +59,15 @@ export function SettingsContent({ onAfterSignOut }: SettingsContentProps) {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(TTS_VOICE_STORAGE_KEY);
-      if (stored && KOKORO_VOICES.some((v) => v.id === stored)) {
-        setTtsVoiceId(stored);
-        const voice = KOKORO_VOICES.find((v) => v.id === stored);
-        if (voice) {
-          setTtsLang(voice.lang);
-          setTtsGender(voice.gender);
-        }
+      const voiceId = getValidTtsVoice(stored);
+      if (stored && stored !== voiceId) {
+        localStorage.setItem(TTS_VOICE_STORAGE_KEY, voiceId);
+      }
+      setTtsVoiceId(voiceId);
+      const voice = KOKORO_VOICES.find((v) => v.id === voiceId);
+      if (voice) {
+        setTtsLang(voice.lang);
+        setTtsGender(voice.gender);
       }
     } catch {
       // ignore

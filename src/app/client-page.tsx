@@ -64,7 +64,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TTS_VOICE_STORAGE_KEY } from '@/config/tts-voices';
+import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
 
 const MAHAD_CHARACTER_ID = 'character-1';
@@ -256,14 +256,15 @@ export default function ClientPage() {
 
   const ttsMutation = useMutation({
     mutationFn: async (text: string) => {
-      const voice =
+      const stored =
         typeof window !== 'undefined' ? localStorage.getItem(TTS_VOICE_STORAGE_KEY) : null;
+      const voice = getValidTtsVoice(stored);
       const response = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text, voice: voice || undefined }),
+        body: JSON.stringify({ text, voice }),
       });
       
       if (!response.ok) {
@@ -335,13 +336,14 @@ export default function ClientPage() {
 
       if (respondWithVoice && data.response.length > 0) {
         const fullText = data.response.join('');
-        const ttsVoice =
+        const stored =
           typeof window !== 'undefined' ? localStorage.getItem(TTS_VOICE_STORAGE_KEY) : null;
+        const ttsVoice = getValidTtsVoice(stored);
         try {
           const ttsRes = await fetch('/api/text-to-speech', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: fullText, voice: ttsVoice || undefined }),
+            body: JSON.stringify({ text: fullText, voice: ttsVoice }),
           });
           if (!ttsRes.ok) throw new Error('TTS failed');
           const ttsData = await ttsRes.json();

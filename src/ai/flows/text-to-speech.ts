@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import { litellmTextToSpeech } from '@/ai/litellm-client';
+import { getValidTtsVoice } from '@/config/tts-voices';
 
 const TextToSpeechInputSchema = z.union([
   z.string(),
@@ -34,11 +35,11 @@ export async function textToSpeech(
   }
 
   const model = process.env.LITELLM_TTS_MODEL || 'kokoro';
-  let voice =
+  const rawVoice =
     (typeof input === 'object' && input && 'voice' in input && input.voice) ||
     process.env.LITELLM_TTS_VOICE ||
-    'af_bella';
-  if (voice === 'af') voice = 'af_bella';
+    null;
+  const voice = getValidTtsVoice(rawVoice);
 
   const { audioBuffer, contentType } = await litellmTextToSpeech({
     text,
