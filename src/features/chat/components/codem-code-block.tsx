@@ -50,10 +50,10 @@ export function CodeMCodeBlock({ segment, className }: CodeMCodeBlockProps) {
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </Button>
       </div>
-      {/* Code area: dark, monospace, scrollable */}
-      <div className="overflow-x-auto bg-[#0d1117] dark:bg-[#0d1117]">
-        <pre className="p-3 m-0 text-[13px] leading-relaxed font-mono text-gray-100 whitespace-pre">
-          <code className="text-emerald-100/95">{code}</code>
+      {/* Code area: theme-responsive background and text */}
+      <div className="overflow-x-auto bg-slate-50 dark:bg-[#0d1117]">
+        <pre className="p-3 m-0 text-[13px] leading-relaxed font-mono text-slate-800 dark:text-gray-100 whitespace-pre">
+          <code className="text-emerald-700 dark:text-emerald-100/95">{code}</code>
         </pre>
       </div>
     </div>
