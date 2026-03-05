@@ -10,11 +10,18 @@ export const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
 
 export const REACTION_OPTIONS = ['👍', '👎', '❤️', '😂', '🔥', '😮'] as const;
 
+/** Code M only: parsed segment for prose vs code block. */
+export type MessageSegment =
+  | { type: 'text'; text: string }
+  | { type: 'code'; code: string; language?: string; filename?: string };
+
 export interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   isStreaming?: boolean;
+  /** Code M only: structured text + code segments; when present, render via segment UI. */
+  segments?: MessageSegment[];
   imageDataUri?: string;
   imageBase64?: string;
   reaction?: string;

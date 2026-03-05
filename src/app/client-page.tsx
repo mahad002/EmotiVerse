@@ -73,6 +73,7 @@ import { ChatSearchBar } from '@/features/chat/components/search-bar';
 import { ChatSidebar } from '@/features/chat/components/chat-sidebar';
 import { ChatHeader } from '@/features/chat/components/chat-header';
 import { ChatOverlays } from '@/features/chat/components/overlays';
+import { CodeMCodeBlock } from '@/features/chat/components/codem-code-block';
 import { useChatSession } from '@/features/chat/hooks/use-chat-session';
 import { useChatAudio } from '@/features/chat/hooks/use-chat-audio';
 import { useChatInput } from '@/features/chat/hooks/use-chat-input';
@@ -90,6 +91,7 @@ import {
   type ChatData,
   type Message,
 } from '@/features/chat/lib/chat-types';
+import { parseCodeMResponse } from '@/features/chat/lib/parse-codem-response';
 
 /**
  * Chat composition shell: selects character/persona/capabilities, wires feature hooks
@@ -103,7 +105,9 @@ export default function ClientPage() {
     defaultPersonas[0].id
   );
   const [charactersList] = useState<Character[]>(characters);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>('');
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(
+    () => characters[0]?.id ?? ''
+  );
   const { chats, setChats, getMessages, clearChat, setMessageReaction, buildHistory } = useChatSession({
     characterIds: charactersList.map((c) => c.id),
   });
@@ -359,6 +363,30 @@ export default function ClientPage() {
       }
 
       if (respondWithVoice) setIsWaitingForVoiceResponse(false);
+
+      // Code M: buffer full response, parse into text + code segments, add one message
+      if (isCodeM(characterId) && data.response.length > 0) {
+        const fullText = data.response.join('');
+        const segments = parseCodeMResponse(fullText);
+        const newAiMessage: Message = {
+          id: 'ai-' + Date.now(),
+          text: fullText,
+          sender: 'ai',
+          segments,
+        };
+        setChats((prev) => ({
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: [...(prev[characterId]?.messages || []), newAiMessage],
+            lastMessage: fullText,
+            lastMessageTime: new Date(),
+          },
+        }));
+        return;
+      }
+
+      // Sara / Mahad: one bubble per chunk with typing delay
       const chunks = data.response;
       for (const chunk of chunks) {
         const typingDelay = 500 + chunk.length * 25 + Math.random() * 200;
@@ -801,9 +829,9 @@ export default function ClientPage() {
   }
   
   return (
-    <div ref={mainContentRef} className="flex h-screen w-full bg-background" tabIndex={-1}>
+    <div ref={mainContentRef} className="flex h-screen w-full min-w-0 overflow-hidden bg-background" tabIndex={-1}>
       {/* Sidebar - WhatsApp style - Hidden on mobile */}
-      <div className="hidden md:flex w-14 bg-[#e9edef] dark:bg-[#202c33] border-r border-border flex-col items-center py-3 gap-3 flex-shrink-0">
+      <div className="hidden md:flex w-14 shrink-0 bg-[#e9edef] dark:bg-[#202c33] border-r border-border flex-col items-center py-3 gap-3">
         {/* Logo/Avatar at top */}
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center mb-2 cursor-pointer">
           <Avatar className="h-10 w-10 border-2 border-white/20">
@@ -875,22 +903,30 @@ export default function ClientPage() {
         </button>
       </div>
 
-      <ChatSidebar
-        characters={charactersList}
-        chats={chats}
-        selectedCharacterId={selectedCharacterId}
-        onSelectCharacter={handleCharacterSelect}
-        isMobileChatView={isMobileChatView}
-        onOpenSettings={() => {
-          setProfileSheetTab('settings');
-          setIsProfileSheetOpen(true);
-        }}
-      />
+      {/* Chat list: fixed 288px on desktop so it never fills the screen */}
+      <div
+        className={cn(
+          'flex flex-col shrink-0 w-full md:w-[288px] md:min-w-[288px] md:max-w-[288px]',
+          isMobileChatView && 'hidden md:flex'
+        )}
+      >
+        <ChatSidebar
+          characters={charactersList}
+          chats={chats}
+          selectedCharacterId={selectedCharacterId}
+          onSelectCharacter={handleCharacterSelect}
+          isMobileChatView={isMobileChatView}
+          onOpenSettings={() => {
+            setProfileSheetTab('settings');
+            setIsProfileSheetOpen(true);
+          }}
+        />
+      </div>
 
       {/* Main Chat Area */}
       {selectedCharacter ? (
       <div className={cn(
-        "flex-1 flex flex-col",
+        "flex-1 flex flex-col min-w-0 min-h-0 basis-0",
         capabilities?.useTerminalTheme
           ? "bg-[#f0fdf8] dark:bg-[#050e0a]"
           : "bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
@@ -1149,6 +1185,24 @@ export default function ClientPage() {
                             <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
                             <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
                           </div>
+                        ) : isCodeMSelected && msg.sender === 'ai' && msg.segments && msg.segments.length > 0 ? (
+                          <div className="space-y-1.5 pb-0.5">
+                            {msg.segments.map((seg, idx) =>
+                              seg.type === 'text' ? (
+                                <p
+                                  key={idx}
+                                  className={cn(
+                                    "whitespace-pre-wrap leading-relaxed",
+                                    capabilities?.useTerminalTheme && "before:content-['▸_'] before:text-emerald-500"
+                                  )}
+                                >
+                                  {seg.text}
+                                </p>
+                              ) : (
+                                <CodeMCodeBlock key={idx} segment={seg} />
+                              )
+                            )}
+                          </div>
                         ) : (
                           <p className={cn(
                             "whitespace-pre-wrap leading-relaxed pb-0.5",
@@ -1264,7 +1318,7 @@ export default function ClientPage() {
 
       {/* Input Area */}
       <div className={cn(
-        "px-4 py-4 flex-shrink-0 border-t",
+        "w-full min-w-0 px-4 py-4 flex-shrink-0 border-t",
         capabilities?.useTerminalTheme
           ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-emerald-200 dark:border-emerald-900/40"
           : "bg-[#f0f0f0] dark:bg-[#111b21] border-gray-300 dark:border-[#2a3942]"
@@ -1367,7 +1421,7 @@ export default function ClientPage() {
           </div>
         )}
         <div className={cn(
-          "flex items-center gap-1 rounded-full px-2 py-2 relative",
+          "w-full min-w-0 flex items-center gap-2 rounded-full px-2 py-2 relative",
           capabilities?.useTerminalTheme
             ? "bg-white dark:bg-[#0d1a12] border border-emerald-300 dark:border-emerald-900/60 rounded-xl text-gray-800 dark:text-emerald-200"
             : "bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white"
@@ -1666,7 +1720,7 @@ export default function ClientPage() {
                       ? 'Describe the image to generate...'
                       : 'Type a message'
                 }
-            className="flex-1 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 min-h-[40px]"
+            className="flex-1 min-w-0 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 min-h-[40px]"
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {

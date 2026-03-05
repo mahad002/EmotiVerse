@@ -5,13 +5,7 @@ import { motion, useInView } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
-  Heart,
-  Mic,
-  ImageIcon,
-  Brain,
-  Zap,
   MessageCircle,
-  Code2,
   Sparkles,
   ArrowRight,
   Play,
@@ -49,42 +43,42 @@ function FadeUp({
 // ─── Data ──────────────────────────────────────────────────────────────────────
 const features = [
   {
-    icon: Heart,
+    image: '/features/personas.png',
     color: 'text-rose-400',
     bg: 'bg-rose-500/10 border-rose-500/20',
     title: 'Emotional Personas',
     desc: 'Each AI adapts its tone — playful, serious, warm, or witty — based on the persona you select. No generic replies.',
   },
   {
-    icon: Mic,
+    image: '/features/voice.png',
     color: 'text-violet-400',
     bg: 'bg-violet-500/10 border-violet-500/20',
     title: 'Voice & Audio',
     desc: "Send voice messages, hear replies spoken back. Real conversations, not just text on a screen.",
   },
   {
-    icon: ImageIcon,
+    image: '/features/image.png',
     color: 'text-fuchsia-400',
     bg: 'bg-fuchsia-500/10 border-fuchsia-500/20',
     title: 'Image Understanding',
     desc: 'Share photos and get meaningful reactions — ask questions, get descriptions, or just share a moment.',
   },
   {
-    icon: Brain,
+    image: '/features/memory.png',
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10 border-cyan-500/20',
     title: 'Context Memory',
     desc: 'Remembers your conversation as you go. References what you said earlier, just like a real person would.',
   },
   {
-    icon: Zap,
+    image: '/features/instant.png',
     color: 'text-amber-400',
     bg: 'bg-amber-500/10 border-amber-500/20',
     title: 'Instant Responses',
     desc: 'Streaming replies arrive word-by-word so conversations feel live, reactive, and never make you wait.',
   },
   {
-    icon: Code2,
+    image: '/features/code.png',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10 border-emerald-500/20',
     title: 'Code Intelligence',
@@ -401,17 +395,22 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((f, i) => {
-            const Icon = f.icon;
             return (
               <FadeUp key={f.title} delay={i * 0.07}>
-                <div className="h-full rounded-2xl bg-white/3 border border-white/8 hover:border-white/15 hover:bg-white/5 transition-all p-6 flex flex-col gap-4 group">
-                  <div className={`inline-flex w-11 h-11 items-center justify-center rounded-xl border ${f.bg}`}>
-                    <Icon className={`w-5 h-5 ${f.color}`} />
+                <div className="h-full rounded-2xl bg-white/3 border border-white/8 hover:border-white/15 hover:bg-white/5 transition-all p-6 flex flex-col gap-3 group">
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-base font-semibold text-white mt-0.5">{f.title}</h3>
+                    <div className={`flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border ${f.bg} overflow-hidden bg-black/20`}>
+                      <Image 
+                        src={f.image} 
+                        alt={f.title} 
+                        width={36} 
+                        height={36} 
+                        className="object-contain group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-white mb-1">{f.title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
-                  </div>
+                  <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
                 </div>
               </FadeUp>
             );

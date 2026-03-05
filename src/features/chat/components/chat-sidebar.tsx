@@ -27,7 +27,7 @@ export function ChatSidebar({
   return (
     <div
       className={cn(
-        'w-full md:w-80 bg-[#ffffff] dark:bg-[#111b21] border-r border-border flex flex-col flex-shrink-0',
+        'flex flex-col h-full min-h-0 bg-[#ffffff] dark:bg-[#111b21] border-r border-border w-full',
         isMobileChatView && 'hidden md:flex'
       )}
     >

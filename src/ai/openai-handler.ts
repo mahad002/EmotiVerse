@@ -20,13 +20,27 @@ export interface OpenAIConversationOutput {
   response: string[];
 }
 
+const CODE_M_CHARACTER_NAME = 'Code M';
+
 /**
  * Generate a conversational response using LiteLLM (OpenAI-compatible API).
  */
 export async function generateOpenAIResponse(
   input: OpenAIConversationInput
 ): Promise<OpenAIConversationOutput> {
-  const systemPrompt = `Your name is ${input.characterName} and you are having a conversation with a user. You have the following emotional persona: ${input.persona}.
+  const isCodeM = input.characterName === CODE_M_CHARACTER_NAME;
+
+  const systemPrompt = isCodeM
+    ? `You are Code M, a technical software engineering assistant. You help with code, architecture, and computer science.
+
+- Respond with a JSON object: {"response": ["..."]} where "response" is an array of strings.
+- For technical answers: use 1–3 items. Prefer one or two prose strings and one string per code block.
+- When you include code, wrap it in markdown fenced code blocks with a language tag (e.g. \`\`\`tsx, \`\`\`js, \`\`\`css). Put the entire block (including fences) in a single array item—never split inside a code block.
+- Keep prose brief; avoid filler messages like "Hmm..." when giving code.
+- Use context from the conversation history.
+
+Example: {"response": ["Here's a React component:", "\`\`\`tsx\nconst Button = () => null;\n\`\`\`"]}`
+    : `Your name is ${input.characterName} and you are having a conversation with a user. You have the following emotional persona: ${input.persona}.
 
 You are NOT an AI, a bot, or a language model. You are a person named ${input.characterName}.
 - Do NOT mention that you are an AI.
@@ -102,33 +116,30 @@ Respond with a JSON object containing a "response" field that is an array of str
     const parsed = JSON.parse(content);
     // Handle both formats: { response: [...] } and just [...]
     let responseArray: string[] = [];
-    
+
     if (Array.isArray(parsed)) {
       responseArray = parsed;
     } else if (parsed.response && Array.isArray(parsed.response)) {
       responseArray = parsed.response;
     } else if (parsed.text) {
-      // If it's a single text response, split it into chunks
-      responseArray = splitIntoChunks(parsed.text);
+      responseArray = isCodeM ? [parsed.text] : splitIntoChunks(parsed.text);
     } else if (typeof parsed === 'object') {
-      // Fallback: try to find any array in the response
       const foundArray = Object.values(parsed).find(
         (v) => Array.isArray(v)
       ) as string[] | undefined;
-      responseArray = foundArray || splitIntoChunks(content);
+      responseArray = foundArray || (isCodeM ? [content] : splitIntoChunks(content));
     } else {
-      responseArray = splitIntoChunks(content);
+      responseArray = isCodeM ? [content] : splitIntoChunks(content);
     }
 
-    // If still not an array, split the content into chunks
     if (!Array.isArray(responseArray) || responseArray.length === 0) {
-      responseArray = splitIntoChunks(content);
+      responseArray = isCodeM ? [content] : splitIntoChunks(content);
     }
 
     return { response: responseArray };
-  } catch (error) {
-    // If JSON parsing fails, split the response into chunks
-    return { response: splitIntoChunks(content) };
+  } catch {
+    // JSON parse failed: for Code M return full content so client can parse code blocks
+    return { response: isCodeM ? [content] : splitIntoChunks(content) };
   }
 }
 
