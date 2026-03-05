@@ -1389,32 +1389,46 @@ export default function ClientPage() {
                       </div>
                     ) : (
                       <>
-                        {(msg.imageDataUri || msg.imageBase64) && msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && (
-                          <div className="mb-1.5 space-y-1.5">
-                            <img
-                              src={msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '')}
-                              alt=""
-                              className="max-w-full max-h-48 rounded object-contain"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                              onClick={() => {
-                                const src = msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '');
-                                if (!src) return;
-                                const a = document.createElement('a');
-                                a.href = src;
-                                a.download = `emotiverse-image-${msg.id}.png`;
-                                a.click();
-                              }}
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                              Download
-                            </Button>
-                          </div>
-                        )}
+                        {(msg.imageDataUri || msg.imageBase64) && msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && (() => {
+                          const imgSrc = msg.imageDataUri || (msg.imageBase64 ? `data:image/png;base64,${msg.imageBase64}` : '');
+                          if (!imgSrc) return null;
+                          return (
+                            <div className="mb-1.5 group relative inline-block max-w-full">
+                              <img
+                                src={imgSrc}
+                                alt=""
+                                className="max-w-full max-h-48 rounded object-contain"
+                              />
+                              <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full shadow-md bg-black/50 hover:bg-black/70 text-white border-0"
+                                  aria-label="View larger"
+                                  onClick={() => setViewingImageSrc(imgSrc)}
+                                >
+                                  <Expand className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full shadow-md bg-black/50 hover:bg-black/70 text-white border-0"
+                                  aria-label="Download"
+                                  onClick={() => {
+                                    const a = document.createElement('a');
+                                    a.href = imgSrc;
+                                    a.download = `emotiverse-image-${msg.id}.png`;
+                                    a.click();
+                                  }}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         {msg.id === IMAGE_GENERATING_PLACEHOLDER_ID ? (
                           <div className="flex items-center gap-2 py-2 px-1">
                             <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400 shrink-0" />
@@ -2008,6 +2022,18 @@ export default function ClientPage() {
         </div>
       </SheetContent>
     </Sheet>
+
+    <Dialog open={!!viewingImageSrc} onOpenChange={(open) => !open && setViewingImageSrc(null)}>
+      <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-2 border-0 bg-black/40 shadow-none overflow-visible [&>button]:bg-white/90 [&>button]:text-black [&>button]:rounded-full">
+        {viewingImageSrc && (
+          <img
+            src={viewingImageSrc}
+            alt=""
+            className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+          />
+        )}
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
