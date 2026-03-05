@@ -48,6 +48,7 @@ import {
   StickyNote,
   MapPin,
   Sparkles,
+  Expand,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProfileSettingsPage } from '@/components/profile-settings-page';
@@ -64,6 +65,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
 
@@ -168,6 +170,9 @@ export default function ClientPage() {
 
   /** True from sending a voice response until TTS is done (so "Recording" stays visible during TTS). */
   const [isWaitingForVoiceResponse, setIsWaitingForVoiceResponse] = useState(false);
+
+  /** Image lightbox: src when open, null when closed */
+  const [viewingImageSrc, setViewingImageSrc] = useState<string | null>(null);
 
   /** Pending voice message (Voice mode: record then send) */
   const [pendingVoiceDataUri, setPendingVoiceDataUri] = useState<string | null>(null);
