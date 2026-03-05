@@ -74,6 +74,7 @@ import { USER_MESSAGES } from '@/config/user-messages';
 import HeroDashboard from '@/components/codem-dashboard';
 
 const MAHAD_CHARACTER_ID = 'character-1';
+const CODEM_CHARACTER_ID = 'character-3';
 const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
 const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
 
@@ -1225,16 +1226,24 @@ export default function ClientPage() {
         </div>
       </div>
 
-      {/* Main Chat Area - Hidden on mobile when in list view, only show if character selected */}
+      {/* Main Chat Area */}
       {selectedCharacter ? (
       <div className={cn(
-        "flex-1 flex flex-col bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
+        "flex-1 flex flex-col",
+        selectedCharacterId === CODEM_CHARACTER_ID
+          ? "bg-[#050e0a]"
+          : "bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
         !isMobileChatView && "hidden md:flex"
-      )} style={{
+      )} style={selectedCharacterId === CODEM_CHARACTER_ID ? {} : {
         backgroundImage: `url("data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%23f0f0f0%22 fill-opacity=%220.4%22%3E%3Cpath d=%22M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
       }}>
-      {/* Header - WhatsApp style */}
-      <header className="bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0">
+      {/* Header */}
+      <header className={cn(
+        "px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0",
+        selectedCharacterId === CODEM_CHARACTER_ID
+          ? "bg-[#0a0f0d] border-b border-emerald-900/40 text-white"
+          : "bg-primary text-primary-foreground"
+      )}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Mobile: Show back button */}
           <Button
@@ -1246,8 +1255,13 @@ export default function ClientPage() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           
-          <Avatar className="h-10 w-10 cursor-pointer border-2 border-white/20">
-            <AvatarFallback className="bg-white/20 text-primary-foreground font-semibold">
+          <Avatar className="h-10 w-10 cursor-pointer border-2 border-emerald-800/40">
+            <AvatarFallback className={cn(
+              "font-semibold",
+              selectedCharacterId === CODEM_CHARACTER_ID
+                ? "bg-emerald-950 text-emerald-400"
+                : "bg-white/20 text-primary-foreground"
+            )}>
               {selectedCharacter.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
@@ -1255,9 +1269,17 @@ export default function ClientPage() {
           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => {
             // Could open character/persona selector
           }}>
-            <h2 className="text-base font-medium truncate text-primary-foreground">{selectedCharacter.name}</h2>
-            <p className="text-xs opacity-90 truncate text-primary-foreground/80">
-              {(conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse ? 'Recording…' : selectedCharacter.description}
+            <h2 className={cn(
+              "text-base font-medium truncate",
+              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-300 font-mono" : "text-primary-foreground"
+            )}>{selectedCharacter.name}</h2>
+            <p className={cn(
+              "text-xs truncate opacity-90",
+              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-600 font-mono opacity-100" : "text-primary-foreground/80"
+            )}>
+              {(conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse
+                ? selectedCharacterId === CODEM_CHARACTER_ID ? '> generating...' : 'Recording…'
+                : selectedCharacterId === CODEM_CHARACTER_ID ? '> Codestral-22B · Ready' : selectedCharacter.description}
             </p>
           </div>
         </div>
@@ -1463,9 +1485,13 @@ export default function ClientPage() {
                   <div
                     className={cn(
                       'relative rounded-lg px-2 py-1.5 text-[15px] break-words',
-                      msg.sender === 'user'
-                        ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
-                        : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
+                      selectedCharacterId === CODEM_CHARACTER_ID
+                        ? msg.sender === 'user'
+                          ? 'bg-emerald-950 text-emerald-300 rounded-tr-none border border-emerald-800/60 font-mono text-sm'
+                          : 'bg-[#0d1a12] text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm'
+                        : msg.sender === 'user'
+                          ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
+                          : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
                     )}
                   >
                     {msg.audioDataUri ? (
@@ -1569,14 +1595,22 @@ export default function ClientPage() {
                             <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap leading-relaxed pb-0.5">{msg.text}</p>
+                          <p className={cn(
+                            "whitespace-pre-wrap leading-relaxed pb-0.5",
+                            selectedCharacterId === CODEM_CHARACTER_ID && msg.sender === 'ai' && "before:content-['▸_'] before:text-emerald-500"
+                          )}>{msg.text}</p>
                         )}
                         {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && !msg.isStreaming && (
                           <div className={cn(
                             'flex items-center gap-1 mt-0.5 flex-wrap',
                             msg.sender === 'user' ? 'justify-end' : 'justify-start'
                           )}>
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-none">
+                            <span className={cn(
+                              'text-[11px] leading-none',
+                              selectedCharacterId === CODEM_CHARACTER_ID
+                                ? 'text-emerald-800 font-mono'
+                                : 'text-gray-500 dark:text-gray-400'
+                            )}>
                               {new Date().toLocaleTimeString('en-US', {
                                 hour: 'numeric',
                                 minute: '2-digit',
@@ -1673,8 +1707,13 @@ export default function ClientPage() {
           </ScrollArea>
       </div>
 
-      {/* Input Area - WhatsApp style */}
-      <div className="bg-[#f0f0f0] dark:bg-[#111b21] px-4 py-4 flex-shrink-0 border-t border-gray-300 dark:border-[#2a3942]">
+      {/* Input Area */}
+      <div className={cn(
+        "px-4 py-4 flex-shrink-0 border-t",
+        selectedCharacterId === CODEM_CHARACTER_ID
+          ? "bg-[#0a0f0d] border-emerald-900/40"
+          : "bg-[#f0f0f0] dark:bg-[#111b21] border-gray-300 dark:border-[#2a3942]"
+      )}>
         {/* Mahad-only: Chat / Voice / Image mode selector */}
         {selectedCharacterId === MAHAD_CHARACTER_ID && (
           <div className="flex items-center gap-1 mb-2">
@@ -1772,7 +1811,12 @@ export default function ClientPage() {
             </Button>
           </div>
         )}
-        <div className="flex items-center gap-1 bg-white dark:bg-[#2a3942] rounded-full px-2 py-2 text-[#111b21] dark:text-white relative">
+        <div className={cn(
+          "flex items-center gap-1 rounded-full px-2 py-2 relative",
+          selectedCharacterId === CODEM_CHARACTER_ID
+            ? "bg-[#0d1a12] border border-emerald-900/60 rounded-xl text-emerald-200"
+            : "bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white"
+        )}>
           <input
             type="file"
             accept="image/*"
