@@ -1233,7 +1233,7 @@ export default function ClientPage() {
       <div className={cn(
         "flex-1 flex flex-col",
         selectedCharacterId === CODEM_CHARACTER_ID
-          ? "bg-[#050e0a]"
+          ? "bg-[#f0fdf8] dark:bg-[#050e0a]"
           : "bg-[#ece5dd] dark:bg-[#0b141a] sm:bg-[#dedbd2] dark:sm:bg-[#0b141a]",
         !isMobileChatView && "hidden md:flex"
       )} style={selectedCharacterId === CODEM_CHARACTER_ID ? {} : {
@@ -1243,7 +1243,7 @@ export default function ClientPage() {
       <header className={cn(
         "px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0",
         selectedCharacterId === CODEM_CHARACTER_ID
-          ? "bg-[#0a0f0d] border-b border-emerald-900/40 text-white"
+          ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-b border-emerald-200 dark:border-emerald-900/40 text-gray-900 dark:text-white"
           : "bg-primary text-primary-foreground"
       )}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1273,11 +1273,11 @@ export default function ClientPage() {
           }}>
             <h2 className={cn(
               "text-base font-medium truncate",
-              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-300 font-mono" : "text-primary-foreground"
+              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-700 dark:text-emerald-300 font-mono" : "text-primary-foreground"
             )}>{selectedCharacter.name}</h2>
             <p className={cn(
               "text-xs truncate opacity-90",
-              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-600 font-mono opacity-100" : "text-primary-foreground/80"
+              selectedCharacterId === CODEM_CHARACTER_ID ? "text-emerald-500 dark:text-emerald-600 font-mono opacity-100" : "text-primary-foreground/80"
             )}>
               {(conversationMutation.isPending && isVoiceEnabled) || isWaitingForVoiceResponse
                 ? selectedCharacterId === CODEM_CHARACTER_ID ? '> generating...' : 'Recording…'
@@ -1503,8 +1503,8 @@ export default function ClientPage() {
                       'relative rounded-lg px-2 py-1.5 text-[15px] break-words',
                       selectedCharacterId === CODEM_CHARACTER_ID
                         ? msg.sender === 'user'
-                          ? 'bg-emerald-950 text-emerald-300 rounded-tr-none border border-emerald-800/60 font-mono text-sm'
-                          : 'bg-[#0d1a12] text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm'
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 rounded-tr-none border border-emerald-300 dark:border-emerald-800/60 font-mono text-sm'
+                          : 'bg-white dark:bg-[#0d1a12] text-gray-800 dark:text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm shadow-sm'
                         : msg.sender === 'user'
                           ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
                           : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
@@ -1624,7 +1624,7 @@ export default function ClientPage() {
                             <span className={cn(
                               'text-[11px] leading-none',
                               selectedCharacterId === CODEM_CHARACTER_ID
-                                ? 'text-emerald-800 font-mono'
+                                ? 'text-emerald-500 dark:text-emerald-800 font-mono'
                                 : 'text-gray-500 dark:text-gray-400'
                             )}>
                               {new Date().toLocaleTimeString('en-US', {
@@ -1727,7 +1727,7 @@ export default function ClientPage() {
       <div className={cn(
         "px-4 py-4 flex-shrink-0 border-t",
         selectedCharacterId === CODEM_CHARACTER_ID
-          ? "bg-[#0a0f0d] border-emerald-900/40"
+          ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-emerald-200 dark:border-emerald-900/40"
           : "bg-[#f0f0f0] dark:bg-[#111b21] border-gray-300 dark:border-[#2a3942]"
       )}>
         {/* Mahad-only: Chat / Voice / Image mode selector */}
@@ -1830,7 +1830,7 @@ export default function ClientPage() {
         <div className={cn(
           "flex items-center gap-1 rounded-full px-2 py-2 relative",
           selectedCharacterId === CODEM_CHARACTER_ID
-            ? "bg-[#0d1a12] border border-emerald-900/60 rounded-xl text-emerald-200"
+            ? "bg-white dark:bg-[#0d1a12] border border-emerald-300 dark:border-emerald-900/60 rounded-xl text-gray-800 dark:text-emerald-200"
             : "bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white"
         )}>
           <input
