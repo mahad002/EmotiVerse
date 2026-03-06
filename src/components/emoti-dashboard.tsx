@@ -86,7 +86,7 @@ export default function EmotiDashboard() {
 
       {/* ── Animated mockup card ────────────────────────────────────────── */}
       <div
-        className="w-full"
+        className="w-full max-w-sm mx-auto px-4"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >

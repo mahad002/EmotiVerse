@@ -108,7 +108,7 @@ export default function HeroDashboard() {
 
         {/* ── Animated mockup card ──────────────────────────────────────── */}
         <div
-          className="w-full max-w-sm mx-auto px-4"
+          className="w-1/2"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
           style={{
