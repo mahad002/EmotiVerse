@@ -4,8 +4,12 @@
  */
 import * as admin from 'firebase-admin';
 import type { NextRequest } from 'next/server';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 let initialized = false;
+
+const SERVICE_ACCOUNT_FILENAME = 'emotiverse-7q2bl-firebase-adminsdk-fbsvc-05a9c066dc.json';
 
 function ensureInitialized(): void {
   if (initialized) return;
@@ -14,28 +18,34 @@ function ensureInitialized(): void {
     return;
   }
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const key = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  if (projectId) {
+  if (!projectId) return;
+
+  const possibleDirs = [process.cwd(), join(process.cwd(), '..')];
+  const credPath = possibleDirs.map((dir) => join(dir, SERVICE_ACCOUNT_FILENAME)).find((p) => existsSync(p));
+  if (credPath) {
+    const serviceAccount = JSON.parse(readFileSync(credPath, 'utf8'));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      projectId: serviceAccount.project_id,
+    });
+  } else {
+    const key = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+    const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
     if (key && clientEmail) {
-      try {
-        const privateKey = key.replace(/\\n/g, '\n');
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            projectId,
-            clientEmail,
-            privateKey,
-          }),
-        });
-      } catch {
-        // Fallback: application default credentials (e.g. GOOGLE_APPLICATION_CREDENTIALS)
-        admin.initializeApp({ projectId });
-      }
+      const privateKey = key.replace(/\\n/g, '\n');
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+        projectId,
+      });
     } else {
       admin.initializeApp({ projectId });
     }
-    initialized = true;
   }
+  initialized = true;
 }
 
 export interface DecodedToken {

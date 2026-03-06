@@ -17,6 +17,9 @@ export interface AppendActivityLogData {
   characterId: string;
   persona?: string;
   messages: ActivityLogMessage[];
+  /** e.g. 'emotional' | 'typem' | 'codem' */
+  source?: string;
+  sessionId?: string;
 }
 
 function getTrackedEmail(): string | null {
@@ -38,8 +41,10 @@ export function appendActivityLog(data: AppendActivityLogData): void {
     email: data.email ?? null,
     timestamp: new Date(),
     characterId: data.characterId,
-    ...(data.persona ? { persona: data.persona } : {}),
+    persona: data.persona ?? '',
     messages: data.messages,
+    ...(data.source ? { source: data.source } : {}),
+    ...(data.sessionId ? { sessionId: data.sessionId } : {}),
   };
   db.collection(COLLECTION)
     .add(payload)

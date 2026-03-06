@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
                 { role: 'user', text: message.trim() },
                 { role: 'ai', text: aiText },
               ],
+              source: 'codem',
+              sessionId,
             });
           }
         } catch (err) {

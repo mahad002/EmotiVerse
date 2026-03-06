@@ -6,8 +6,11 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Settings as SettingsIcon } from 'lucide-react';
+import Link from 'next/link';
+import { User, Settings as SettingsIcon, ActivitySquare, ExternalLink } from 'lucide-react';
 import { SettingsContent } from '@/components/settings-content';
+import { cn } from '@/lib/utils';
+import { ADMIN_EMAIL } from '@/config/admin';
 
 interface UserProfile {
   name?: string;
@@ -29,6 +32,7 @@ export function ProfileSettingsPage({
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   useEffect(() => {
     if (!user || !db) {
@@ -61,7 +65,7 @@ export function ProfileSettingsPage({
   return (
     <div className="flex flex-col h-full">
       <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsList className={cn('mb-4 grid w-full', isAdmin ? 'grid-cols-3' : 'grid-cols-2')}>
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Profile
@@ -70,6 +74,12 @@ export function ProfileSettingsPage({
             <SettingsIcon className="h-4 w-4" />
             Settings
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="activity" className="flex items-center gap-2">
+              <ActivitySquare className="h-4 w-4" />
+              Activity
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="flex-1 overflow-y-auto mt-0 focus-visible:outline-none">
@@ -112,6 +122,26 @@ export function ProfileSettingsPage({
         <TabsContent value="settings" className="flex-1 overflow-y-auto mt-0 focus-visible:outline-none">
           <SettingsContent onAfterSignOut={onAfterSignOut} />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="activity" className="flex-1 overflow-y-auto mt-0 focus-visible:outline-none">
+            <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+              <ActivitySquare className="h-12 w-12 text-muted-foreground" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Activity overview</p>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  View all users and tracked activity (tones, messages) on a full page.
+                </p>
+              </div>
+              <Link
+                href="/app/activity"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Open activity overview
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

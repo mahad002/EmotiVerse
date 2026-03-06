@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
           { role: 'user', text: body.message },
           { role: 'ai', text: (result.response ?? []).join(' ') },
         ],
+        source: 'emotional',
       });
     }
     return NextResponse.json(result);

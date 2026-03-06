@@ -1,11 +1,22 @@
 rules_version = '2';
-// Deploy with: firebase deploy --only firestore:rules
-// activity_logs: server-only (Admin SDK). Client must not read or write.
+// Deploy: firebase deploy --only firestore:rules
+// Admin (mahad112002@gmail.com): can read all users and all activity_logs.
+// Others: own user doc only; no activity_logs.
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.email == 'mahad112002@gmail.com'
+      );
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
     match /activity_logs/{document} {
+      allow read: if request.auth != null && request.auth.token.email == 'mahad112002@gmail.com';
+      allow write: if false;
+    }
+    match /{document=**} {
       allow read, write: if false;
     }
-    // Add your other collection rules (e.g. users) below or in Firebase console.
   }
 }
