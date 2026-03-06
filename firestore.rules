@@ -1,0 +1,11 @@
+rules_version = '2';
+// Deploy with: firebase deploy --only firestore:rules
+// activity_logs: server-only (Admin SDK). Client must not read or write.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /activity_logs/{document} {
+      allow read, write: if false;
+    }
+    // Add your other collection rules (e.g. users) below or in Firebase console.
+  }
+}

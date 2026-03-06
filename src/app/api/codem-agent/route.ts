@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runCodeMAgent } from '@/ai/codem/orchestrator';
 import type { ProgressEvent, AgentOutput } from '@/ai/codem/types';
+import { getDecodedIdToken } from '@/lib/firebase-admin';
+import { appendActivityLog } from '@/lib/activity-log';
 
 export const maxDuration = 120;
 
@@ -18,6 +20,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const decoded = await getDecodedIdToken(request);
+    const characterId = sessionId.replace(/^codem-/, '') || sessionId;
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -31,6 +36,28 @@ export async function POST(request: NextRequest) {
             (event) => send(event)
           );
           send({ type: 'result', output });
+          if (decoded) {
+            const historyMessages = history.map((h: { sender?: string; text?: string }) => ({
+              role: (h.sender === 'user' ? 'user' : 'ai') as 'user' | 'ai',
+              text: typeof h.text === 'string' ? h.text : '',
+            }));
+            const aiText =
+              typeof output.response === 'string'
+                ? output.response
+                : output.files?.length
+                  ? `Generated ${output.files.length} file(s).`
+                  : '';
+            void appendActivityLog({
+              uid: decoded.uid,
+              email: decoded.email,
+              characterId,
+              messages: [
+                ...historyMessages,
+                { role: 'user', text: message.trim() },
+                { role: 'ai', text: aiText },
+              ],
+            });
+          }
         } catch (err) {
           console.error('Code M agent route error:', err);
           send({

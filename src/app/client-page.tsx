@@ -55,6 +55,7 @@ import {
   PenLine,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { auth } from '@/lib/firebase';
 import {
   Popover,
   PopoverContent,
@@ -298,11 +299,12 @@ export default function ClientPage() {
 
   const conversationMutation = useMutation({
     mutationFn: async (input: EmotionalConversationInput) => {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const response = await fetch('/api/emotional-conversation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(input),
       });
       
@@ -487,9 +489,12 @@ export default function ClientPage() {
 
   const codeMAgentMutation = useMutation({
     mutationFn: async (input: CodeMAgentInput): Promise<{ output: import('@/ai/codem/types').AgentOutput; characterId: string }> => {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch('/api/codem-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           message: input.message,
           history: input.history,
@@ -686,9 +691,12 @@ export default function ClientPage() {
 
   const typeMAgentMutation = useMutation({
     mutationFn: async (input: TypeMAgentInput): Promise<{ output: import('@/ai/typem/types').AgentOutput; characterId: string }> => {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch('/api/typem-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           message: input.message,
           history: input.history,
