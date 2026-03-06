@@ -25,6 +25,12 @@ export const characters: Character[] = [
     description: 'Online',
     apiProvider: 'litellm',
   },
+  {
+    id: 'character-4',
+    name: 'Type M',
+    description: 'Online',
+    apiProvider: 'litellm',
+  },
 ];
 
 export const defaultCharacter = characters[0];

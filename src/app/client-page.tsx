@@ -16,7 +16,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { codeMPersona, defaultPersonas, type Persona } from '@/config/personas';
+import { codeMPersona, typeMPersona, defaultPersonas, type Persona } from '@/config/personas';
 import { characters, defaultCharacter, type Character } from '@/config/characters';
 import { type EmotionalConversationInput } from '@/ai/flows/emotional-conversation';
 import {
@@ -69,6 +69,7 @@ import {
 import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
 import HeroDashboard from '@/components/codem-dashboard';
+import TypeMDashboard from '@/components/typem-dashboard';
 import { ChatSearchBar } from '@/features/chat/components/search-bar';
 import { ChatSidebar } from '@/features/chat/components/chat-sidebar';
 import { ChatHeader } from '@/features/chat/components/chat-header';
@@ -77,7 +78,12 @@ import { CodeMCodeBlock } from '@/features/chat/components/codem-code-block';
 import { CodeMProjectView } from '@/features/chat/components/codem-project-view';
 import { CodeMProjectTodo } from '@/features/chat/components/codem-project-todo';
 import { CodeMProgress, type CodeMPipelineStage } from '@/features/chat/components/codem-progress';
+import { TypeMProgress, type TypeMPipelineStage } from '@/features/chat/components/typem-progress';
+import { TypeMOutlineTodo } from '@/features/chat/components/typem-outline-todo';
+import { TypeMSectionBlock } from '@/features/chat/components/typem-section-block';
+import { TypeMDocumentView } from '@/features/chat/components/typem-document-view';
 import type { ProjectPlan } from '@/ai/codem/types';
+import type { DocumentPlan as TypeMDocumentPlan, DocumentSection as TypeMDocumentSection } from '@/ai/typem/types';
 import { useChatSession } from '@/features/chat/hooks/use-chat-session';
 import { useChatAudio } from '@/features/chat/hooks/use-chat-audio';
 import { useChatInput } from '@/features/chat/hooks/use-chat-input';
@@ -85,6 +91,7 @@ import {
   getCharacterCapabilities,
   isMahad,
   isCodeM,
+  isTypeM,
 } from '@/features/chat/lib/character-capabilities';
 import {
   IMAGE_GENERATING_PLACEHOLDER_ID,
@@ -184,6 +191,14 @@ export default function ClientPage() {
   const [codeMProjectPlan, setCodeMProjectPlan] = useState<ProjectPlan | null>(null);
   const [codeMAccumulatedFiles, setCodeMAccumulatedFiles] = useState<GeneratedFile[]>([]);
   const codeMAccumulatedFilesRef = useRef<GeneratedFile[]>([]);
+  const [typeMPipelineStage, setTypeMPipelineStage] = useState<TypeMPipelineStage>(null);
+  const [typeMPipelineDetail, setTypeMPipelineDetail] = useState<string | undefined>();
+  const [typeMPipelineSectionIndex, setTypeMPipelineSectionIndex] = useState<number | undefined>();
+  const [typeMPipelineTotalSections, setTypeMPipelineTotalSections] = useState<number | undefined>();
+  const [typeMPipelineAttempt, setTypeMPipelineAttempt] = useState<number | undefined>();
+  const [typeMDocumentPlan, setTypeMDocumentPlan] = useState<TypeMDocumentPlan | null>(null);
+  const [typeMAccumulatedSections, setTypeMAccumulatedSections] = useState<TypeMDocumentSection[]>([]);
+  const typeMAccumulatedSectionsRef = useRef<TypeMDocumentSection[]>([]);
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -227,7 +242,8 @@ export default function ClientPage() {
   const selectedCharacter: Character | null =
     selectedCharacterId ? (charactersList.find((c) => c.id === selectedCharacterId) ?? null) : null;
   const isCodeMSelected = selectedCharacterId ? isCodeM(selectedCharacterId) : false;
-  const activePersona = isCodeMSelected ? codeMPersona : selectedPersona;
+  const isTypeMSelected = selectedCharacterId ? isTypeM(selectedCharacterId) : false;
+  const activePersona = isCodeMSelected ? codeMPersona : isTypeMSelected ? typeMPersona : selectedPersona;
 
   useEffect(() => {
     if (selectedCharacterId && !capabilities?.resetInputModeWhenLeaving) {
@@ -659,6 +675,178 @@ export default function ClientPage() {
     },
   });
 
+  type TypeMAgentInput = {
+    characterId: string;
+    message: string;
+    history: { sender: string; text: string }[];
+    sessionId: string;
+  };
+
+  const typeMAgentMutation = useMutation({
+    mutationFn: async (input: TypeMAgentInput): Promise<{ output: import('@/ai/typem/types').AgentOutput; characterId: string }> => {
+      const res = await fetch('/api/typem-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: input.message,
+          history: input.history,
+          sessionId: input.sessionId,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'Type M agent failed');
+      }
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result: import('@/ai/typem/types').AgentOutput | null = null;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6)) as
+                  | { stage?: string; detail?: string; sectionId?: string; sectionIndex?: number; totalSections?: number; attempt?: number; plan?: TypeMDocumentPlan; sections?: TypeMDocumentSection[] }
+                  | { type: 'result'; output: import('@/ai/typem/types').AgentOutput };
+                if ('type' in data && data.type === 'result') {
+                  result = data.output;
+                } else if ('stage' in data && data.stage) {
+                  setTypeMPipelineStage(data.stage as TypeMPipelineStage);
+                  setTypeMPipelineDetail(data.detail);
+                  setTypeMPipelineSectionIndex(data.sectionIndex);
+                  setTypeMPipelineTotalSections(data.totalSections);
+                  setTypeMPipelineAttempt(data.attempt);
+                  if (data.stage === 'outline_ready' && data.plan) {
+                    setTypeMDocumentPlan(data.plan);
+                  }
+                  if (data.stage === 'section_generated' && Array.isArray(data.sections) && data.sections.length > 0) {
+                    const prev = typeMAccumulatedSectionsRef.current;
+                    const merged = [...prev];
+                    for (const s of data.sections) {
+                      const idx = merged.findIndex((m) => m.id === s.id);
+                      if (idx >= 0) merged[idx] = s;
+                      else merged.push(s);
+                    }
+                    typeMAccumulatedSectionsRef.current = merged;
+                    setTypeMAccumulatedSections(merged);
+                  }
+                }
+              } catch {
+                // skip malformed SSE
+              }
+            }
+          }
+        }
+      }
+
+      if (!result) throw new Error('No result from Type M agent');
+      return { output: result, characterId: input.characterId };
+    },
+    onMutate: async (variables) => {
+      const aiMessageId = 'ai-streaming-' + Date.now();
+      setTypeMPipelineStage('classifying');
+      setTypeMPipelineDetail(undefined);
+      setTypeMPipelineSectionIndex(undefined);
+      setTypeMPipelineTotalSections(undefined);
+      setTypeMPipelineAttempt(undefined);
+      setTypeMDocumentPlan(null);
+      typeMAccumulatedSectionsRef.current = [];
+      setTypeMAccumulatedSections([]);
+      const newAiMessage: Message = {
+        id: aiMessageId,
+        text: '',
+        sender: 'ai',
+        isStreaming: true,
+      };
+      setChats((prev) => ({
+        ...prev,
+        [variables.characterId]: {
+          ...prev[variables.characterId],
+          messages: [...(prev[variables.characterId]?.messages || []), newAiMessage],
+        },
+      }));
+      return { aiMessageId };
+    },
+    onSuccess: (data, variables, context) => {
+      const aiMessageId = context?.aiMessageId;
+      const characterId = data.characterId;
+      const { output } = data;
+      setTypeMPipelineStage(null);
+      setTypeMPipelineDetail(undefined);
+      setTypeMDocumentPlan(null);
+
+      const messagesToAdd: Message[] = [];
+      if (output.type === 'simple') {
+        messagesToAdd.push({
+          id: 'ai-' + Date.now(),
+          text: output.response,
+          sender: 'ai',
+        });
+      } else if (output.type === 'document' && output.plan && output.sections) {
+        const sections = output.sections.length > 0 ? output.sections : typeMAccumulatedSectionsRef.current;
+        messagesToAdd.push({
+          id: 'ai-' + Date.now() + '-plan',
+          text: output.response,
+          sender: 'ai',
+          documentPlan: { title: output.plan.title, sections: output.plan.sections },
+          documentSections: undefined,
+        });
+        sections.forEach((sec, idx) => {
+          messagesToAdd.push({
+            id: 'ai-' + Date.now() + '-sec-' + idx,
+            text: '',
+            sender: 'ai',
+            documentSections: [sec],
+          });
+        });
+      }
+
+      setChats((prev) => {
+        const base = prev[characterId]?.messages ?? [];
+        const withoutStreaming = base.filter((msg) => msg.id !== aiMessageId);
+        return {
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: [...withoutStreaming, ...messagesToAdd],
+            lastMessage: output.response,
+            lastMessageTime: new Date(),
+          },
+        };
+      });
+      typeMAccumulatedSectionsRef.current = [];
+      setTypeMAccumulatedSections([]);
+    },
+    onError: (_error, variables, context) => {
+      setTypeMPipelineStage(null);
+      setTypeMDocumentPlan(null);
+      setTypeMAccumulatedSections([]);
+      toast({
+        title: 'Something went wrong',
+        description: USER_MESSAGES.CONVERSATION,
+        variant: 'destructive',
+      });
+      if (context?.aiMessageId) {
+        setChats((prev) => ({
+          ...prev,
+          [variables.characterId]: {
+            ...prev[variables.characterId],
+            messages: (prev[variables.characterId]?.messages || []).filter(
+              (msg) => msg.id !== context.aiMessageId
+            ),
+          },
+        }));
+      }
+    },
+  });
+
   const generateImageMutation = useMutation({
     mutationFn: async (params: { prompt: string; quality: 'high' | 'fast' }) => {
       const res = await fetch('/api/generate-image', {
@@ -925,6 +1113,16 @@ export default function ClientPage() {
         message: effectiveText,
         history,
         sessionId: `codem-${selectedCharacterId}`,
+      });
+      return;
+    }
+
+    if (isTypeM(selectedCharacterId)) {
+      typeMAgentMutation.mutate({
+        characterId: selectedCharacterId,
+        message: effectiveText,
+        history,
+        sessionId: `typem-${selectedCharacterId}`,
       });
       return;
     }
@@ -1204,6 +1402,13 @@ export default function ClientPage() {
               {codeMPersona.name}
             </div>
           </div>
+        ) : isTypeMSelected ? (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Mode:</label>
+            <div className="h-8 inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/10 px-3 text-xs font-medium text-sky-700 dark:text-sky-300">
+              {typeMPersona.name}
+            </div>
+          </div>
         ) : (
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Tone:</label>
@@ -1255,10 +1460,14 @@ export default function ClientPage() {
             "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col",
             capabilities?.messagesAlignStart ? "justify-start" : "justify-end"
           )}>
-            {/* Code M: dashboard always pinned at top */}
+            {/* Character dashboard pinned at top (Code M or Type M) */}
             {capabilities?.showDashboardAboveMessages && (
-              <div className="w-full mb-4 pb-4 border-b border-emerald-900/30">
-                <HeroDashboard />
+              <div
+                className={`w-full mb-4 pb-4 border-b ${
+                  isTypeMSelected ? 'border-sky-900/30' : 'border-emerald-900/30'
+                }`}
+              >
+                {isTypeMSelected ? <TypeMDashboard /> : <HeroDashboard />}
               </div>
             )}
             {displayMessages.length === 0 && (
@@ -1449,6 +1658,37 @@ export default function ClientPage() {
                                 attempt={codeMPipelineAttempt}
                               />
                             </div>
+                          ) : isTypeMSelected && typeMAgentMutation.isPending ? (
+                            <div className="space-y-2">
+                              {typeMDocumentPlan && (
+                                <TypeMOutlineTodo
+                                  plan={typeMDocumentPlan}
+                                  currentSectionIndex={typeMPipelineSectionIndex ?? 0}
+                                  totalSections={typeMDocumentPlan.sections.length}
+                                />
+                              )}
+                              {typeMAccumulatedSections.length > 0 && (
+                                <div className="space-y-1.5">
+                                  <p className="text-[11px] font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wider">
+                                    Written so far
+                                  </p>
+                                  {typeMAccumulatedSections.map((sec, idx) => (
+                                    <TypeMSectionBlock
+                                      key={`${sec.id}-${idx}`}
+                                      title={sec.title}
+                                      content={sec.content}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              <TypeMProgress
+                                stage={typeMPipelineStage}
+                                detail={typeMPipelineDetail}
+                                sectionIndex={typeMPipelineSectionIndex}
+                                totalSections={typeMPipelineTotalSections}
+                                attempt={typeMPipelineAttempt}
+                              />
+                            </div>
                           ) : (
                             <div className="flex items-center space-x-1.5 py-1">
                               <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
@@ -1461,6 +1701,28 @@ export default function ClientPage() {
                             files={msg.projectFiles ?? []}
                             plan={msg.agentPlan}
                           />
+                        ) : isTypeMSelected && msg.sender === 'ai' && msg.documentPlan ? (
+                          <div className="rounded-lg border border-sky-200 dark:border-sky-900/50 overflow-hidden bg-white dark:bg-[#0a0f0d] px-3 py-2">
+                            <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-1">
+                              Document
+                            </p>
+                            <p className="text-sm font-medium text-sky-800 dark:text-sky-300">{msg.documentPlan.title}</p>
+                            {msg.documentPlan.sections?.length > 0 && (
+                              <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1.5">
+                                Sections are listed below.
+                              </p>
+                            )}
+                          </div>
+                        ) : isTypeMSelected && msg.sender === 'ai' && msg.documentSections && msg.documentSections.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {msg.documentSections.map((sec) => (
+                              <TypeMSectionBlock
+                                key={sec.id}
+                                title={sec.title}
+                                content={sec.content}
+                              />
+                            ))}
+                          </div>
                         ) : isCodeMSelected && msg.sender === 'ai' && msg.segments && msg.segments.length > 0 ? (
                           <div className="space-y-1.5 pb-0.5">
                             {msg.segments.map((seg, idx) =>
@@ -2037,13 +2299,13 @@ export default function ClientPage() {
                 disabled={
                   conversationMutation.isPending ||
                   generateImageMutation.isPending ||
-                  (isCodeMSelected ? codeMAgentMutation.isPending : false)
+                  (isCodeMSelected ? codeMAgentMutation.isPending : isTypeMSelected ? typeMAgentMutation.isPending : false)
                 }
                 size="icon"
                 className="h-9 w-9 shrink-0 bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground rounded-full transition-colors"
                 aria-label="Send"
               >
-                {conversationMutation.isPending || generateImageMutation.isPending || (isCodeMSelected && codeMAgentMutation.isPending) ? (
+                {conversationMutation.isPending || generateImageMutation.isPending || (isCodeMSelected && codeMAgentMutation.isPending) || (isTypeMSelected && typeMAgentMutation.isPending) ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Send className="h-5 w-5" />

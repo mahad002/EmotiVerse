@@ -5,6 +5,7 @@
 
 export const MAHAD_CHARACTER_ID = 'character-1';
 export const CODEM_CHARACTER_ID = 'character-3';
+export const TYPEM_CHARACTER_ID = 'character-4';
 export const IMAGE_GENERATING_PLACEHOLDER_ID = '__image_generating__';
 export const NOTIFICATION_MUTED_STORAGE_KEY = 'emotiverse_notification_muted';
 
@@ -59,6 +60,10 @@ export interface Message {
   projectFiles?: GeneratedFile[];
   /** Code M agent: plan summary for project messages. */
   agentPlan?: AgentPlanSummary;
+  /** Type M agent: document plan (title + outline) for document messages. */
+  documentPlan?: { title: string; sections: { id: string; title: string; description: string }[] };
+  /** Type M agent: one or more document sections (when sent as separate messages). */
+  documentSections?: { id: string; title: string; description: string; content: string }[];
   imageDataUri?: string;
   imageBase64?: string;
   reaction?: string;

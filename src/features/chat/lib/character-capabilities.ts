@@ -3,7 +3,7 @@
  * Replaces scattered selectedCharacterId === MAHAD_CHARACTER_ID / CODEM_CHARACTER_ID checks.
  */
 
-import { CODEM_CHARACTER_ID, MAHAD_CHARACTER_ID } from './chat-types';
+import { CODEM_CHARACTER_ID, MAHAD_CHARACTER_ID, TYPEM_CHARACTER_ID } from './chat-types';
 
 export interface CharacterCapabilities {
   /** Can use voice mode (record + TTS response). Mahad only. */
@@ -72,9 +72,24 @@ const SARA_DEFAULT_CAPABILITIES: CharacterCapabilities = {
   resetInputModeWhenLeaving: false,
 };
 
+const TYPEM_CAPABILITIES: CharacterCapabilities = {
+  supportsVoiceMode: false,
+  supportsImageMode: false,
+  fixedPersonaId: 'typem-writing-expert',
+  useTerminalTheme: false,
+  showDashboardAboveMessages: true,
+  showToneSelector: false,
+  statusLabelPending: '> writing...',
+  statusLabelReady: '> Type M · Ready',
+  messagesAlignStart: true,
+  showEmptyStatePrompt: false,
+  resetInputModeWhenLeaving: false,
+};
+
 const CAPABILITIES_BY_ID: Record<string, CharacterCapabilities> = {
   [MAHAD_CHARACTER_ID]: MAHAD_CAPABILITIES,
   [CODEM_CHARACTER_ID]: CODEM_CAPABILITIES,
+  [TYPEM_CHARACTER_ID]: TYPEM_CAPABILITIES,
 };
 
 export function getCharacterCapabilities(characterId: string): CharacterCapabilities {
@@ -83,6 +98,10 @@ export function getCharacterCapabilities(characterId: string): CharacterCapabili
 
 export function isCodeM(characterId: string): boolean {
   return characterId === CODEM_CHARACTER_ID;
+}
+
+export function isTypeM(characterId: string): boolean {
+  return characterId === TYPEM_CHARACTER_ID;
 }
 
 export function isMahad(characterId: string): boolean {
