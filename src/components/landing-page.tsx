@@ -300,11 +300,15 @@ export default function LandingPage() {
                 <div className="absolute top-0 inset-x-0 h-14 flex items-center gap-3 px-6 z-20">
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">System Status: Online</span>
+                    <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">
+                      <span className="hidden md:inline">System Status: </span>Online
+                    </span>
                   </div>
                   <div className="h-3 w-[1px] bg-white/10 mx-1" />
-                  <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">EmotiVerse Preview</span>
-                  <div className="ml-auto flex items-center gap-4 opacity-40">
+                  <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">
+                    <span className="hidden md:inline">EmotiVerse </span>Preview
+                  </span>
+                  <div className="ml-auto hidden md:flex items-center gap-4 opacity-40">
                     <span className="text-[9px] text-gray-400 font-mono tabular-nums uppercase tracking-tighter">LOC: 34.0522° N, 118.2437° W</span>
                     <span className="text-[9px] text-gray-400 font-mono tracking-tighter uppercase">v1.0.4-STABLE</span>
                   </div>
