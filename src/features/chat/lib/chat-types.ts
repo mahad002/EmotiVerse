@@ -15,6 +15,39 @@ export type MessageSegment =
   | { type: 'text'; text: string }
   | { type: 'code'; code: string; language?: string; filename?: string };
 
+/** Code M agent: one generated file in a multi-file project output. */
+export interface GeneratedFile {
+  path: string;
+  content: string;
+  language: string;
+}
+
+/**
+ * Merge file lists by path: one entry per path, last occurrence wins.
+ * Use when the agent may emit the same path multiple times (e.g. create then rework).
+ */
+export function mergeFilesByPath(
+  existing: GeneratedFile[],
+  incoming: GeneratedFile[]
+): GeneratedFile[] {
+  const byPath = new Map<string, GeneratedFile>();
+  existing.forEach((f) => byPath.set(f.path, f));
+  incoming.forEach((f) => byPath.set(f.path, f));
+  return [...byPath.values()];
+}
+
+/** Code M agent: plan summary for display (tasks + architecture + setup). */
+export interface AgentPlanSummary {
+  tasks: string[];
+  architecture: string;
+  /** ASCII directory tree for layman setup. */
+  directoryTree?: string;
+  /** Ordered install/run commands (npm install, npm start, etc.). */
+  setupCommands?: string[];
+  /** All generated file paths — used to derive mkdir/touch commands in UI. */
+  filePaths?: string[];
+}
+
 export interface Message {
   id: string;
   text: string;
@@ -22,6 +55,10 @@ export interface Message {
   isStreaming?: boolean;
   /** Code M only: structured text + code segments; when present, render via segment UI. */
   segments?: MessageSegment[];
+  /** Code M agent: multi-file project output; when present, render via CodeMProjectView. */
+  projectFiles?: GeneratedFile[];
+  /** Code M agent: plan summary for project messages. */
+  agentPlan?: AgentPlanSummary;
   imageDataUri?: string;
   imageBase64?: string;
   reaction?: string;

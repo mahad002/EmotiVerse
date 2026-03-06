@@ -74,6 +74,10 @@ import { ChatSidebar } from '@/features/chat/components/chat-sidebar';
 import { ChatHeader } from '@/features/chat/components/chat-header';
 import { ChatOverlays } from '@/features/chat/components/overlays';
 import { CodeMCodeBlock } from '@/features/chat/components/codem-code-block';
+import { CodeMProjectView } from '@/features/chat/components/codem-project-view';
+import { CodeMProjectTodo } from '@/features/chat/components/codem-project-todo';
+import { CodeMProgress, type CodeMPipelineStage } from '@/features/chat/components/codem-progress';
+import type { ProjectPlan } from '@/ai/codem/types';
 import { useChatSession } from '@/features/chat/hooks/use-chat-session';
 import { useChatAudio } from '@/features/chat/hooks/use-chat-audio';
 import { useChatInput } from '@/features/chat/hooks/use-chat-input';
@@ -88,8 +92,10 @@ import {
   REACTION_OPTIONS,
   VOICE_WAVEFORM_BARS,
   formatVoiceDuration,
+  mergeFilesByPath,
   type ChatData,
   type Message,
+  type GeneratedFile,
 } from '@/features/chat/lib/chat-types';
 import { parseCodeMResponse } from '@/features/chat/lib/parse-codem-response';
 
@@ -170,6 +176,14 @@ export default function ClientPage() {
   /** Pending voice message (Voice mode: record then send) */
   const [pendingVoiceDataUri, setPendingVoiceDataUri] = useState<string | null>(null);
   const [pendingVoiceDurationSeconds, setPendingVoiceDurationSeconds] = useState(0);
+  const [codeMPipelineStage, setCodeMPipelineStage] = useState<CodeMPipelineStage>(null);
+  const [codeMPipelineDetail, setCodeMPipelineDetail] = useState<string | undefined>();
+  const [codeMPipelineTaskIndex, setCodeMPipelineTaskIndex] = useState<number | undefined>();
+  const [codeMPipelineTotalTasks, setCodeMPipelineTotalTasks] = useState<number | undefined>();
+  const [codeMPipelineAttempt, setCodeMPipelineAttempt] = useState<number | undefined>();
+  const [codeMProjectPlan, setCodeMProjectPlan] = useState<ProjectPlan | null>(null);
+  const [codeMAccumulatedFiles, setCodeMAccumulatedFiles] = useState<GeneratedFile[]>([]);
+  const codeMAccumulatedFilesRef = useRef<GeneratedFile[]>([]);
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -427,6 +441,205 @@ export default function ClientPage() {
     },
     onError: (_error, variables, context) => {
       setIsWaitingForVoiceResponse(false);
+      toast({
+        title: 'Something went wrong',
+        description: USER_MESSAGES.CONVERSATION,
+        variant: 'destructive',
+      });
+      if (context?.aiMessageId) {
+        setChats((prev) => ({
+          ...prev,
+          [variables.characterId]: {
+            ...prev[variables.characterId],
+            messages: (prev[variables.characterId]?.messages || []).filter(
+              (msg) => msg.id !== context.aiMessageId
+            ),
+          },
+        }));
+      }
+    },
+  });
+
+  type CodeMAgentInput = {
+    characterId: string;
+    message: string;
+    history: { sender: string; text: string }[];
+    sessionId: string;
+  };
+
+  const codeMAgentMutation = useMutation({
+    mutationFn: async (input: CodeMAgentInput): Promise<{ output: import('@/ai/codem/types').AgentOutput; characterId: string }> => {
+      const res = await fetch('/api/codem-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: input.message,
+          history: input.history,
+          sessionId: input.sessionId,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'Code M agent failed');
+      }
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result: import('@/ai/codem/types').AgentOutput | null = null;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6)) as
+                  | { stage?: string; detail?: string; taskId?: string; taskIndex?: number; totalTasks?: number; attempt?: number; plan?: ProjectPlan; files?: GeneratedFile[] }
+                  | { type: 'result'; output: import('@/ai/codem/types').AgentOutput };
+                if ('type' in data && data.type === 'result') {
+                  result = data.output;
+                } else if ('stage' in data && data.stage) {
+                  setCodeMPipelineStage(data.stage as CodeMPipelineStage);
+                  setCodeMPipelineDetail(data.detail);
+                  setCodeMPipelineTaskIndex(data.taskIndex);
+                  setCodeMPipelineTotalTasks(data.totalTasks);
+                  setCodeMPipelineAttempt(data.attempt);
+                  if (data.stage === 'plan_ready' && data.plan) {
+                    setCodeMProjectPlan(data.plan);
+                  }
+                  if (data.stage === 'file_generated' && Array.isArray(data.files) && data.files.length > 0) {
+                    const merged = mergeFilesByPath(codeMAccumulatedFilesRef.current, data.files);
+                    codeMAccumulatedFilesRef.current = merged;
+                    setCodeMAccumulatedFiles(merged);
+                  }
+                }
+              } catch {
+                // skip malformed SSE
+              }
+            }
+          }
+        }
+      }
+
+      if (!result) throw new Error('No result from Code M agent');
+      return { output: result, characterId: input.characterId };
+    },
+    onMutate: async (variables) => {
+      const aiMessageId = 'ai-streaming-' + Date.now();
+      setCodeMPipelineStage('classifying');
+      setCodeMPipelineDetail(undefined);
+      setCodeMPipelineTaskIndex(undefined);
+      setCodeMPipelineTotalTasks(undefined);
+      setCodeMPipelineAttempt(undefined);
+      setCodeMProjectPlan(null);
+      codeMAccumulatedFilesRef.current = [];
+      setCodeMAccumulatedFiles([]);
+      const newAiMessage: Message = {
+        id: aiMessageId,
+        text: '',
+        sender: 'ai',
+        isStreaming: true,
+      };
+      setChats((prev) => ({
+        ...prev,
+        [variables.characterId]: {
+          ...prev[variables.characterId],
+          messages: [...(prev[variables.characterId]?.messages || []), newAiMessage],
+        },
+      }));
+      return { aiMessageId };
+    },
+    onSuccess: (data, variables, context) => {
+      const aiMessageId = context?.aiMessageId;
+      const characterId = data.characterId;
+      const { output } = data;
+      setCodeMPipelineStage(null);
+      setCodeMPipelineDetail(undefined);
+      setCodeMProjectPlan(null);
+
+      const newAiMessage: Message = {
+        id: 'ai-' + Date.now(),
+        text: output.response,
+        sender: 'ai',
+      };
+      const messagesToAdd: Message[] = [];
+      if (output.type === 'project') {
+        const fromServer = output.files ?? [];
+        const accumulated = codeMAccumulatedFilesRef.current ?? [];
+        const serverHasContent = fromServer.some((f) => (f.content?.trim?.() ?? '').length > 0);
+        const raw = (fromServer.length > 0 && serverHasContent)
+          ? fromServer
+          : (accumulated.length > 0 ? accumulated : fromServer);
+        // One entry per path, last occurrence wins (reworked file updates the earlier one)
+        const projectFiles = mergeFilesByPath([], raw);
+        const agentPlan = output.plan
+          ? {
+              tasks: output.plan.tasks.map((t) => t.description),
+              architecture: `${output.plan.architecture.projectType}: ${output.plan.architecture.structure.map((n) => n.path).join(', ')}`,
+              directoryTree: output.directoryTree,
+              setupCommands: output.setupCommands,
+              filePaths: projectFiles.map((f) => f.path),
+            }
+          : undefined;
+        // Plan/summary message (shows architecture + directory tree + setup commands + "Generated the following files")
+        if (agentPlan || projectFiles.length === 0) {
+          messagesToAdd.push({
+            id: 'ai-' + Date.now() + '-plan',
+            text: projectFiles.length > 0 ? 'Generated the following files:' : output.response || 'Generated the following files:',
+            sender: 'ai',
+            agentPlan: agentPlan ?? undefined,
+            projectFiles: [],
+          });
+        }
+        // One message per file (each with a single code segment so it can be downloaded)
+        projectFiles.forEach((file, idx) => {
+          messagesToAdd.push({
+            id: 'ai-' + Date.now() + '-file-' + idx,
+            text: '',
+            sender: 'ai',
+            segments: [
+              { type: 'code', code: file.content, language: file.language, filename: file.path },
+            ],
+          });
+        });
+        // If no plan and no files, keep a single fallback message
+        if (messagesToAdd.length === 0) {
+          newAiMessage.text = output.response;
+          newAiMessage.agentPlan = undefined;
+          messagesToAdd.push(newAiMessage);
+        }
+      } else if (output.segments?.length) {
+        newAiMessage.segments = output.segments;
+        messagesToAdd.push(newAiMessage);
+      } else {
+        newAiMessage.text = output.response;
+        messagesToAdd.push(newAiMessage);
+      }
+
+      setChats((prev) => {
+        const base = prev[characterId]?.messages ?? [];
+        const withoutStreaming = base.filter((msg) => msg.id !== aiMessageId);
+        return {
+          ...prev,
+          [characterId]: {
+            ...prev[characterId],
+            messages: [...withoutStreaming, ...messagesToAdd],
+            lastMessage: output.response,
+            lastMessageTime: new Date(),
+          },
+        };
+      });
+      codeMAccumulatedFilesRef.current = [];
+      setCodeMAccumulatedFiles([]);
+    },
+    onError: (_error, variables, context) => {
+      setCodeMPipelineStage(null);
+      setCodeMProjectPlan(null);
+      setCodeMAccumulatedFiles([]);
       toast({
         title: 'Something went wrong',
         description: USER_MESSAGES.CONVERSATION,
@@ -705,6 +918,17 @@ export default function ClientPage() {
 
     const respondWithVoice = capabilities?.supportsVoiceMode && inputMode === 'voice';
     if (respondWithVoice) setIsWaitingForVoiceResponse(true);
+
+    if (isCodeM(selectedCharacterId)) {
+      codeMAgentMutation.mutate({
+        characterId: selectedCharacterId,
+        message: effectiveText,
+        history,
+        sessionId: `codem-${selectedCharacterId}`,
+      });
+      return;
+    }
+
     conversationMutation.mutate({
       message: effectiveText,
       persona: activePersona.systemPrompt,
@@ -1190,11 +1414,53 @@ export default function ClientPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-300">Generating image...</p>
                           </div>
                         ) : msg.isStreaming && msg.text.length === 0 ? (
-                          <div className="flex items-center space-x-1.5 py-1">
-                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
-                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
-                            <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
-                          </div>
+                          isCodeMSelected && codeMAgentMutation.isPending ? (
+                            <div className="space-y-2">
+                              {codeMProjectPlan && (
+                                <CodeMProjectTodo
+                                  plan={codeMProjectPlan}
+                                  currentTaskIndex={codeMPipelineTaskIndex ?? 0}
+                                  totalTasks={codeMPipelineTotalTasks ?? codeMProjectPlan.tasks.length}
+                                />
+                              )}
+                              {codeMAccumulatedFiles.length > 0 && (
+                                <div className="space-y-1.5">
+                                  <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                                    Generated so far
+                                  </p>
+                                  {codeMAccumulatedFiles.map((file, idx) => (
+                                    <CodeMCodeBlock
+                                      key={`${file.path}-${idx}`}
+                                      segment={{
+                                        type: 'code',
+                                        code: file.content,
+                                        language: file.language,
+                                        filename: file.path,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              <CodeMProgress
+                                stage={codeMPipelineStage}
+                                detail={codeMPipelineDetail}
+                                taskIndex={codeMPipelineTaskIndex}
+                                totalTasks={codeMPipelineTotalTasks}
+                                attempt={codeMPipelineAttempt}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-1.5 py-1">
+                              <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse"></span>
+                              <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-75"></span>
+                              <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
+                            </div>
+                          )
+                        ) : isCodeMSelected && msg.sender === 'ai' && (msg.projectFiles?.length > 0 || msg.agentPlan) ? (
+                          <CodeMProjectView
+                            files={msg.projectFiles ?? []}
+                            plan={msg.agentPlan}
+                          />
                         ) : isCodeMSelected && msg.sender === 'ai' && msg.segments && msg.segments.length > 0 ? (
                           <div className="space-y-1.5 pb-0.5">
                             {msg.segments.map((seg, idx) =>
@@ -1768,12 +2034,16 @@ export default function ClientPage() {
             >
               <Button
                 onClick={handleSendMessage}
-                disabled={conversationMutation.isPending || generateImageMutation.isPending}
+                disabled={
+                  conversationMutation.isPending ||
+                  generateImageMutation.isPending ||
+                  (isCodeMSelected ? codeMAgentMutation.isPending : false)
+                }
                 size="icon"
                 className="h-9 w-9 shrink-0 bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground rounded-full transition-colors"
                 aria-label="Send"
               >
-                {conversationMutation.isPending || generateImageMutation.isPending ? (
+                {conversationMutation.isPending || generateImageMutation.isPending || (isCodeMSelected && codeMAgentMutation.isPending) ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <Send className="h-5 w-5" />

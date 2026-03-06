@@ -41,6 +41,7 @@ function hasImageContent(messages: ChatMessage[]): boolean {
 
 export async function litellmChatCompletion(options: {
   messages: ChatMessage[];
+  model?: string;
   modelEnvKey?: string;
   defaultModel?: string;
   maxTokens?: number;
@@ -49,6 +50,7 @@ export async function litellmChatCompletion(options: {
 }) {
   const {
     messages,
+    model: modelOverride,
     modelEnvKey = 'LITELLM_CHAT_MODEL',
     defaultModel = 'mistral-small-3.1',
     maxTokens = 1024,
@@ -59,9 +61,11 @@ export async function litellmChatCompletion(options: {
   const base = getBaseUrl();
   const key = getApiKey();
   const useVision = useVisionModel ?? hasImageContent(messages);
-  const model = useVision
-    ? (process.env.LITELLM_VISION_MODEL || process.env[modelEnvKey] || defaultModel)
-    : (process.env[modelEnvKey] || defaultModel);
+  const model = modelOverride
+    ? modelOverride
+    : useVision
+      ? (process.env.LITELLM_VISION_MODEL || process.env[modelEnvKey] || defaultModel)
+      : (process.env[modelEnvKey] || defaultModel);
 
   const response = await fetch(`${base}/chat/completions`, {
     method: 'POST',
@@ -263,5 +267,54 @@ export async function litellmTranscribe(options: {
   } catch {
     return rawBody.trim();
   }
+}
+
+/**
+ * Embed text via OpenAI-compatible /embeddings endpoint (e.g. sfr-embedding-mistral).
+ * Returns the embedding vector as number[].
+ */
+export async function litellmEmbed(options: {
+  input: string;
+  model?: string;
+  modelEnvKey?: string;
+}): Promise<number[]> {
+  const {
+    input,
+    model: modelOverride,
+    modelEnvKey = 'LITELLM_EMBEDDING_MODEL',
+  } = options;
+
+  const base = getBaseUrl();
+  const key = getApiKey();
+  const model = modelOverride || process.env[modelEnvKey] || 'sfr-embedding-mistral';
+
+  const response = await fetch(`${base}/embeddings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: input.trim() || ' ',
+      encoding_format: 'float',
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const message =
+      (data && (data.error?.message || data.message)) ||
+      `LiteLLM embeddings failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const embedding = data.data?.[0]?.embedding;
+  if (!Array.isArray(embedding)) {
+    throw new Error('No embedding returned from LiteLLM embeddings');
+  }
+
+  return embedding as number[];
 }
 
