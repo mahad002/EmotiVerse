@@ -8,7 +8,7 @@ import { litellmChatCompletion } from '@/ai/litellm-client';
 import type { DocumentPlan, OutlineSection } from './types';
 
 const EXPANDER_MODEL_ENV = 'LITELLM_VALIDATOR_MODEL';
-const EXPANDER_DEFAULT = 'gemma-3-27b';
+const EXPANDER_DEFAULT = 'gemma-3-27b-it';
 
 export async function expandSection(
   section: OutlineSection,

@@ -8,7 +8,7 @@ import { litellmChatCompletion } from '@/ai/litellm-client';
 import type { DocumentSection, ReviewResult } from './types';
 
 const REVIEWER_MODEL_ENV = 'LITELLM_PLANNER_MODEL';
-const REVIEWER_DEFAULT = 'llama-3.3-70b';
+const REVIEWER_DEFAULT = 'llama-3.3-70b-instruct';
 
 export async function reviewSection(
   section: DocumentSection

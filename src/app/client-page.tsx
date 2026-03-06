@@ -81,6 +81,7 @@ import { CodeMProjectTodo } from '@/features/chat/components/codem-project-todo'
 import { CodeMProgress, type CodeMPipelineStage } from '@/features/chat/components/codem-progress';
 import { TypeMProgress, type TypeMPipelineStage } from '@/features/chat/components/typem-progress';
 import { TypeMOutlineTodo } from '@/features/chat/components/typem-outline-todo';
+import { TypeMPaperView } from '@/features/chat/components/typem-paper-view';
 import { TypeMSectionBlock } from '@/features/chat/components/typem-section-block';
 import { TypeMDocumentView } from '@/features/chat/components/typem-document-view';
 import type { ProjectPlan } from '@/ai/codem/types';
@@ -785,27 +786,31 @@ export default function ClientPage() {
 
       const messagesToAdd: Message[] = [];
       if (output.type === 'simple') {
+        // Title from user message so doc, PDF, and section downloads are named meaningfully (not "Writing" / "Entry").
+        const rawTitle = (variables.message || '').trim().replace(/\s+/g, ' ').slice(0, 50);
+        const docTitle = rawTitle || 'Document';
+        const sectionTitle = docTitle;
         messagesToAdd.push({
           id: 'ai-' + Date.now(),
           text: output.response,
           sender: 'ai',
+          documentPlan: {
+            title: docTitle,
+            sections: [{ id: '1', title: sectionTitle, description: '', content: output.response }],
+          },
+          documentSections: [
+            { id: '1', title: sectionTitle, description: '', content: output.response },
+          ],
         });
       } else if (output.type === 'document' && output.plan && output.sections) {
         const sections = output.sections.length > 0 ? output.sections : typeMAccumulatedSectionsRef.current;
+        // One message with full document (plan + all sections) so it shows as one paper, not one bubble per section
         messagesToAdd.push({
-          id: 'ai-' + Date.now() + '-plan',
+          id: 'ai-' + Date.now(),
           text: output.response,
           sender: 'ai',
           documentPlan: { title: output.plan.title, sections: output.plan.sections },
-          documentSections: undefined,
-        });
-        sections.forEach((sec, idx) => {
-          messagesToAdd.push({
-            id: 'ai-' + Date.now() + '-sec-' + idx,
-            text: '',
-            sender: 'ai',
-            documentSections: [sec],
-          });
+          documentSections: sections,
         });
       }
 
@@ -1519,7 +1524,10 @@ export default function ClientPage() {
 
                 {/* Wrapper so reaction badge and trigger sit outside the message bubble */}
                 <div className={cn(
-                  'group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] overflow-visible',
+                  'group relative overflow-visible',
+                  isTypeMSelected && msg.sender === 'ai' && msg.documentPlan
+                    ? 'w-full max-w-full'
+                    : 'max-w-[85%] sm:max-w-[75%] md:max-w-[65%]',
                   msg.sender === 'user' && 'ml-auto'
                 )}>
                   <div
@@ -1529,9 +1537,11 @@ export default function ClientPage() {
                         ? msg.sender === 'user'
                           ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 rounded-tr-none border border-emerald-300 dark:border-emerald-800/60 font-mono text-sm'
                           : 'bg-white dark:bg-[#0d1a12] text-gray-800 dark:text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm shadow-sm'
-                        : msg.sender === 'user'
-                          ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
-                          : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
+                        : isTypeMSelected && msg.sender === 'ai' && msg.documentPlan
+                          ? 'bg-transparent p-0 rounded-xl shadow-none border-0 max-w-full'
+                          : msg.sender === 'user'
+                            ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none shadow-sm dark:bg-[#005c4b] dark:text-white'
+                            : 'bg-white text-gray-900 rounded-tl-none shadow-sm dark:bg-[#1f2c34] dark:text-white'
                     )}
                   >
                     {msg.audioDataUri ? (
@@ -1709,28 +1719,10 @@ export default function ClientPage() {
                             plan={msg.agentPlan}
                           />
                         ) : isTypeMSelected && msg.sender === 'ai' && msg.documentPlan ? (
-                          <div className="rounded-xl border border-amber-200/70 dark:border-amber-800/50 overflow-hidden bg-[#fefdfb] dark:bg-stone-900/90 px-3 py-2.5 shadow-sm">
-                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                              <PenLine className="w-3.5 h-3.5" />
-                              Document
-                            </p>
-                            <p className="text-sm font-medium text-stone-800 dark:text-stone-200">{msg.documentPlan.title}</p>
-                            {msg.documentPlan.sections?.length > 0 && (
-                              <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1.5">
-                                Sections are listed below.
-                              </p>
-                            )}
-                          </div>
-                        ) : isTypeMSelected && msg.sender === 'ai' && msg.documentSections && msg.documentSections.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {msg.documentSections.map((sec) => (
-                              <TypeMSectionBlock
-                                key={sec.id}
-                                title={sec.title}
-                                content={sec.content}
-                              />
-                            ))}
-                          </div>
+                          <TypeMPaperView
+                            documentPlan={msg.documentPlan}
+                            documentSections={msg.documentSections ?? []}
+                          />
                         ) : isCodeMSelected && msg.sender === 'ai' && msg.segments && msg.segments.length > 0 ? (
                           <div className="space-y-1.5 pb-0.5">
                             {msg.segments.map((seg, idx) =>

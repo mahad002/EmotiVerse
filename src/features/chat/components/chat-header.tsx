@@ -39,31 +39,48 @@ export function ChatHeader({
   onToggleMute,
   onClearChat,
 }: ChatHeaderProps) {
+  const isCodeM = capabilities?.useTerminalTheme;
+  const isTypeM = capabilities?.useWritingTheme;
+
   return (
     <header
       className={cn(
         'px-4 py-3 flex items-center justify-between shadow-md z-10 flex-shrink-0',
-        capabilities?.useTerminalTheme
-          ? 'bg-[#ecfdf5] dark:bg-[#0a0f0d] border-b border-emerald-200 dark:border-emerald-900/40 text-gray-900 dark:text-white'
-          : 'bg-primary text-primary-foreground'
+        isCodeM &&
+          'bg-[#ecfdf5] dark:bg-[#0a0f0d] border-b border-emerald-200 dark:border-emerald-900/40 text-gray-900 dark:text-white',
+        isTypeM &&
+          'bg-[#faf8f5] dark:bg-[#1c1917] border-b border-amber-200/80 dark:border-amber-900/50 text-stone-900 dark:text-stone-100',
+        !isCodeM && !isTypeM && 'bg-primary text-primary-foreground'
       )}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10"
+          className={cn(
+            'md:hidden h-10 w-10 rounded-full',
+            isCodeM && 'text-emerald-700 hover:bg-emerald-200/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50',
+            isTypeM && 'text-amber-800 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/50',
+            !isCodeM && !isTypeM && 'text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10'
+          )}
           onClick={onBack}
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <Avatar className="h-10 w-10 cursor-pointer border-2 border-emerald-800/40">
+        <Avatar
+          className={cn(
+            'h-10 w-10 cursor-pointer border-2',
+            isCodeM && 'border-emerald-800/40',
+            isTypeM && 'border-amber-700/50 dark:border-amber-600/50',
+            !isCodeM && !isTypeM && 'border-white/20'
+          )}
+        >
           <AvatarFallback
             className={cn(
               'font-semibold',
-              capabilities?.useTerminalTheme
-                ? 'bg-emerald-950 text-emerald-400'
-                : 'bg-white/20 text-primary-foreground'
+              isCodeM && 'bg-emerald-950 text-emerald-400',
+              isTypeM && 'bg-amber-900/80 text-amber-200 dark:bg-amber-800/60 dark:text-amber-100',
+              !isCodeM && !isTypeM && 'bg-white/20 text-primary-foreground'
             )}
           >
             {character.name.charAt(0)}
@@ -73,19 +90,19 @@ export function ChatHeader({
           <h2
             className={cn(
               'text-base font-medium truncate',
-              capabilities?.useTerminalTheme
-                ? 'text-emerald-700 dark:text-emerald-300 font-mono'
-                : 'text-primary-foreground'
+              isCodeM && 'text-emerald-700 dark:text-emerald-300 font-mono',
+              isTypeM && 'text-stone-800 dark:text-stone-100',
+              !isCodeM && !isTypeM && 'text-primary-foreground'
             )}
           >
             {character.name}
           </h2>
           <p
             className={cn(
-              'text-xs truncate opacity-90',
-              capabilities?.useTerminalTheme
-                ? 'text-emerald-500 dark:text-emerald-600 font-mono opacity-100'
-                : 'text-primary-foreground/80'
+              'text-xs truncate',
+              isCodeM && 'text-emerald-500 dark:text-emerald-600 font-mono opacity-100',
+              isTypeM && 'text-amber-700 dark:text-amber-300 opacity-100',
+              !isCodeM && !isTypeM && 'text-primary-foreground/80 opacity-90'
             )}
           >
             {statusLine}
@@ -99,7 +116,12 @@ export function ChatHeader({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-10 w-10 text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10 rounded-full"
+              className={cn(
+                'h-10 w-10 rounded-full',
+                isCodeM && 'text-emerald-700 hover:bg-emerald-200/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50',
+                isTypeM && 'text-amber-800 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/50',
+                !isCodeM && !isTypeM && 'text-primary-foreground hover:bg-white/10 dark:hover:bg-white/10'
+              )}
               aria-label="Menu"
             >
               <MoreVertical className="h-5 w-5" />

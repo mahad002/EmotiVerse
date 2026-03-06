@@ -6,6 +6,7 @@ import { Plus, Settings, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Character } from '@/config/characters';
 import type { ChatData } from '@/features/chat/lib/chat-types';
+import { CODEM_CHARACTER_ID, TYPEM_CHARACTER_ID } from '@/features/chat/lib/chat-types';
 
 export interface ChatSidebarProps {
   characters: Character[];
@@ -84,10 +85,20 @@ export function ChatSidebar({
               )}
             >
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 flex-shrink-0">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {character.name.charAt(0)}
-                  </AvatarFallback>
+                <Avatar className="h-12 w-12 flex-shrink-0 overflow-hidden">
+                  {character.id === CODEM_CHARACTER_ID ? (
+                    <AvatarFallback className="rounded-full w-full h-full flex items-center justify-center bg-emerald-600 text-white font-bold text-lg font-mono border-2 border-emerald-400/50 shadow-sm">
+                      C
+                    </AvatarFallback>
+                  ) : character.id === TYPEM_CHARACTER_ID ? (
+                    <AvatarFallback className="rounded-full w-full h-full flex items-center justify-center bg-amber-600 text-amber-50 font-bold text-lg border-2 border-amber-400/50 shadow-sm" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                      T
+                    </AvatarFallback>
+                  ) : (
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {character.name.charAt(0)}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">

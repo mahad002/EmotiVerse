@@ -72,9 +72,9 @@ export function TypeMProgress({
     >
       <PenLine className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
       <span className="flex gap-0.5 shrink-0">
-        <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '0ms' }} />
-        <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '120ms' }} />
-        <span className="h-1 w-1 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '240ms' }} />
+        <span className="h-1 w-1 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" style={{ animationDelay: '0ms' }} />
+        <span className="h-1 w-1 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" style={{ animationDelay: '120ms' }} />
+        <span className="h-1 w-1 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" style={{ animationDelay: '240ms' }} />
       </span>
       <span className="truncate">{label}</span>
     </div>

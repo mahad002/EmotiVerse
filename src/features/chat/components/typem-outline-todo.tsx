@@ -18,25 +18,25 @@ export function TypeMOutlineTodo(props: TypeMOutlineTodoProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-amber-200/70 dark:border-amber-800/50 overflow-hidden shadow-sm',
-        'bg-[#fefdfb] dark:bg-stone-900/90 text-sm',
+        'rounded-xl border border-amber-200/70 dark:border-[#2d2a26] overflow-hidden shadow-sm',
+        'bg-[#fefdfb] dark:bg-[#1a1815] text-sm',
         className
       )}
     >
-      <div className="px-3 py-2.5 border-b border-amber-100 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30">
+      <div className="px-3 py-2.5 border-b border-amber-100 dark:border-[#2d2a26] bg-amber-50/60 dark:bg-[#171412]">
         <div className="flex items-center gap-2 mb-1">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/50 border border-amber-200/60 dark:border-amber-800/40">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-[#1f1c19] border border-amber-200/60 dark:border-[#2d2a26]">
             <PenLine className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0" />
           </div>
           <span className="font-semibold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider">
             Document
           </span>
         </div>
-        <p className="text-xs text-stone-700 dark:text-stone-300 font-medium truncate pl-9">
+        <p className="text-xs text-stone-700 dark:text-stone-200 font-medium truncate pl-9">
           {title}
         </p>
       </div>
-      <div className="px-3 py-2">
+      <div className="px-3 py-2 dark:bg-[#1a1815]">
         <div className="flex items-center gap-2 mb-1.5">
           <List className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="font-semibold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider">
@@ -54,7 +54,7 @@ export function TypeMOutlineTodo(props: TypeMOutlineTodoProps) {
                   'flex items-center gap-2 text-xs',
                   isDone && 'text-amber-800 dark:text-amber-300',
                   isCurrent && 'text-amber-900 dark:text-amber-200 font-medium',
-                  !isDone && !isCurrent && 'text-stone-500 dark:text-stone-500'
+                  !isDone && !isCurrent && 'text-stone-500 dark:text-stone-400'
                 )}
               >
                 {isDone ? (

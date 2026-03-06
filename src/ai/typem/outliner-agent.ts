@@ -1,14 +1,14 @@
 'use server';
 
 /**
- * Outliner agent: produces DocumentPlan (title + sections with descriptions) using llama-3.3-70b.
+ * Outliner agent: produces DocumentPlan (title + sections with descriptions) using llama-3.3-70b-instruct.
  */
 
 import { litellmChatCompletion } from '@/ai/litellm-client';
 import type { DocumentPlan, OutlineSection, WritingIntent } from './types';
 
 const OUTLINER_MODEL_ENV = 'LITELLM_PLANNER_MODEL';
-const OUTLINER_DEFAULT = 'llama-3.3-70b';
+const OUTLINER_DEFAULT = 'llama-3.3-70b-instruct';
 
 const SYSTEM_PROMPT = `You are a writing assistant. Given the user's request and optional document type, tone, and audience, output a JSON object with:
 - "title": string — document title

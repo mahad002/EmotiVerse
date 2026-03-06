@@ -39,6 +39,31 @@ function hasImageContent(messages: ChatMessage[]): boolean {
   return false;
 }
 
+/**
+ * Some deployments expose only specific model IDs (often "*-instruct").
+ * Normalize legacy/short names to allowed IDs to prevent runtime failures
+ * when env vars or defaults are out of sync with the gateway.
+ */
+function normalizeModelName(raw: string): string {
+  const model = String(raw ?? '').trim();
+  if (!model) return model;
+
+  // Exact aliases
+  const map: Record<string, string> = {
+    'llama-3.3-70b': 'llama-3.3-70b-instruct',
+    'llama-3.1-70b': 'llama-3.1-70b-instruct',
+    'llama-3.1-8b': 'llama-3.1-8b-instruct',
+    'gemma-3-27b': 'gemma-3-27b-it',
+  };
+  if (map[model]) return map[model];
+
+  // Pattern-based normalization (only when missing the expected suffix)
+  if (model === 'llama-3.3-70b') return 'llama-3.3-70b-instruct';
+  if (model === 'gemma-3-27b') return 'gemma-3-27b-it';
+
+  return model;
+}
+
 export async function litellmChatCompletion(options: {
   messages: ChatMessage[];
   model?: string;
@@ -61,11 +86,12 @@ export async function litellmChatCompletion(options: {
   const base = getBaseUrl();
   const key = getApiKey();
   const useVision = useVisionModel ?? hasImageContent(messages);
-  const model = modelOverride
+  const selectedModel = modelOverride
     ? modelOverride
     : useVision
       ? (process.env.LITELLM_VISION_MODEL || process.env[modelEnvKey] || defaultModel)
       : (process.env[modelEnvKey] || defaultModel);
+  const model = normalizeModelName(selectedModel);
 
   const response = await fetch(`${base}/chat/completions`, {
     method: 'POST',

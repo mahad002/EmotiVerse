@@ -6,12 +6,12 @@
 export type TaskType = 'planning' | 'code_generation' | 'validation' | 'embedding' | 'intent';
 
 const PLANNER_ENV = 'LITELLM_PLANNER_MODEL';
-const PLANNER_FALLBACKS = ['llama-3.3-70b', 'mistral-small-3.1'];
+const PLANNER_FALLBACKS = ['llama-3.3-70b-instruct', 'mistral-small-3.1'];
 const PLANNER_DEFAULT = 'gpt-oss-120b';
 
 const VALIDATOR_ENV = 'LITELLM_VALIDATOR_MODEL';
-const VALIDATOR_FALLBACKS = ['gemma-3-27b'];
-const VALIDATOR_DEFAULT = 'llama-3.3-70b';
+const VALIDATOR_FALLBACKS = ['gemma-3-27b-it'];
+const VALIDATOR_DEFAULT = 'llama-3.3-70b-instruct';
 
 const CHAT_ENV = 'LITELLM_CHAT_MODEL';
 const CHAT_DEFAULT = 'codestral-22b';
