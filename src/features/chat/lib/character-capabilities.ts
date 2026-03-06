@@ -14,6 +14,8 @@ export interface CharacterCapabilities {
   fixedPersonaId: string | null;
   /** Terminal/Code M theme (emerald, monospace, dashboard). */
   useTerminalTheme: boolean;
+  /** Writing/Type M theme: paper background, letter-style UI. */
+  useWritingTheme: boolean;
   /** Show dashboard (e.g. HeroDashboard) above messages. Code M only. */
   showDashboardAboveMessages: boolean;
   /** Show the tone/persona selector. False for Code M. */
@@ -35,6 +37,7 @@ const CODEM_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: 'codem-technical-expert',
   useTerminalTheme: true,
+  useWritingTheme: false,
   showDashboardAboveMessages: true,
   showToneSelector: false,
   statusLabelPending: '> generating...',
@@ -49,6 +52,7 @@ const MAHAD_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: true,
   fixedPersonaId: null,
   useTerminalTheme: false,
+  useWritingTheme: false,
   showDashboardAboveMessages: false,
   showToneSelector: true,
   statusLabelPending: 'Recording…',
@@ -63,6 +67,7 @@ const SARA_DEFAULT_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: null,
   useTerminalTheme: false,
+  useWritingTheme: false,
   showDashboardAboveMessages: false,
   showToneSelector: true,
   statusLabelPending: 'Recording…',
@@ -77,10 +82,11 @@ const TYPEM_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: 'typem-writing-expert',
   useTerminalTheme: false,
+  useWritingTheme: true,
   showDashboardAboveMessages: true,
   showToneSelector: false,
-  statusLabelPending: '> writing...',
-  statusLabelReady: '> Type M · Ready',
+  statusLabelPending: 'Drafting…',
+  statusLabelReady: 'Ready to write',
   messagesAlignStart: true,
   showEmptyStatePrompt: false,
   resetInputModeWhenLeaving: false,

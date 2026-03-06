@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Check, Circle, Loader2, FileText, List } from 'lucide-react';
+import { Check, Circle, Loader2, FileText, List, PenLine } from 'lucide-react';
 import type { DocumentPlan } from '@/ai/typem/types';
 
 export interface TypeMOutlineTodoProps {
@@ -18,27 +18,29 @@ export function TypeMOutlineTodo(props: TypeMOutlineTodoProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border border-sky-200 dark:border-sky-900/50 overflow-hidden',
-        'bg-white dark:bg-[#0a0f0d] text-sm',
+        'rounded-xl border border-amber-200/70 dark:border-amber-800/50 overflow-hidden shadow-sm',
+        'bg-[#fefdfb] dark:bg-stone-900/90 text-sm',
         className
       )}
     >
-      <div className="px-3 py-2 border-b border-sky-100 dark:border-sky-900/40 bg-sky-50/80 dark:bg-sky-950/20">
-        <div className="flex items-center gap-2 mb-1.5">
-          <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-          <span className="font-semibold text-sky-800 dark:text-sky-300 text-xs uppercase tracking-wider">
+      <div className="px-3 py-2.5 border-b border-amber-100 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/50 border border-amber-200/60 dark:border-amber-800/40">
+            <PenLine className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0" />
+          </div>
+          <span className="font-semibold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider">
             Document
           </span>
         </div>
-        <p className="text-xs text-sky-700 dark:text-sky-400 font-medium truncate">
+        <p className="text-xs text-stone-700 dark:text-stone-300 font-medium truncate pl-9">
           {title}
         </p>
       </div>
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 mb-1.5">
-          <List className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-          <span className="font-semibold text-sky-800 dark:text-sky-300 text-xs uppercase tracking-wider">
-            Sections · {currentSectionIndex}/{totalSections}
+          <List className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="font-semibold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider">
+            Sections · {currentSectionIndex} of {totalSections}
           </span>
         </div>
         <ul className="space-y-1 max-h-48 overflow-y-auto">
@@ -50,17 +52,17 @@ export function TypeMOutlineTodo(props: TypeMOutlineTodoProps) {
                 key={section.id}
                 className={cn(
                   'flex items-center gap-2 text-xs',
-                  isDone && 'text-sky-700 dark:text-sky-400',
-                  isCurrent && 'text-sky-600 dark:text-sky-300',
-                  !isDone && !isCurrent && 'text-gray-500 dark:text-slate-500'
+                  isDone && 'text-amber-800 dark:text-amber-300',
+                  isCurrent && 'text-amber-900 dark:text-amber-200 font-medium',
+                  !isDone && !isCurrent && 'text-stone-500 dark:text-stone-500'
                 )}
               >
                 {isDone ? (
-                  <Check className="w-3.5 h-3.5 shrink-0 text-sky-500" />
+                  <Check className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
                 ) : isCurrent ? (
-                  <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-sky-500" />
+                  <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-amber-600 dark:text-amber-400" />
                 ) : (
-                  <Circle className="w-3.5 h-3.5 shrink-0 opacity-50" />
+                  <Circle className="w-3.5 h-3.5 shrink-0 opacity-40 text-amber-700 dark:text-amber-500" />
                 )}
                 <span className="truncate">{section.title}</span>
               </li>

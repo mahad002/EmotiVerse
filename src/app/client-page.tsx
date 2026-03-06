@@ -52,6 +52,7 @@ import {
   BellOff,
   Search as SearchIcon,
   X,
+  PenLine,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -1405,7 +1406,8 @@ export default function ClientPage() {
         ) : isTypeMSelected ? (
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Mode:</label>
-            <div className="h-8 inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/10 px-3 text-xs font-medium text-sky-700 dark:text-sky-300">
+            <div className="h-8 inline-flex items-center gap-1.5 rounded-md border border-amber-800/25 dark:border-amber-600/30 bg-amber-50/80 dark:bg-amber-950/30 px-3 text-xs font-medium text-amber-900 dark:text-amber-200">
+              <PenLine className="w-3.5 h-3.5" />
               {typeMPersona.name}
             </div>
           </div>
@@ -1453,18 +1455,22 @@ export default function ClientPage() {
         />
       )}
 
-      {/* Messages Area - WhatsApp style */}
-      <div className="flex-1 overflow-hidden relative">
+      {/* Messages Area - WhatsApp style; Type M uses paper/letter theme */}
+      <div className={cn(
+        "flex-1 overflow-hidden relative",
+        capabilities?.useWritingTheme && "bg-[#f5f1eb] dark:bg-[#1a1814]"
+      )}>
         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
           <div className={cn(
             "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col",
-            capabilities?.messagesAlignStart ? "justify-start" : "justify-end"
+            capabilities?.messagesAlignStart ? "justify-start" : "justify-end",
+            capabilities?.useWritingTheme && "bg-[#faf8f5] dark:bg-[#1c1917] min-h-full"
           )}>
             {/* Character dashboard pinned at top (Code M or Type M) */}
             {capabilities?.showDashboardAboveMessages && (
               <div
                 className={`w-full mb-4 pb-4 border-b ${
-                  isTypeMSelected ? 'border-sky-900/30' : 'border-emerald-900/30'
+                  isTypeMSelected ? 'border-amber-900/20 dark:border-amber-800/20' : 'border-emerald-900/30'
                 }`}
               >
                 {isTypeMSelected ? <TypeMDashboard /> : <HeroDashboard />}
@@ -1669,7 +1675,8 @@ export default function ClientPage() {
                               )}
                               {typeMAccumulatedSections.length > 0 && (
                                 <div className="space-y-1.5">
-                                  <p className="text-[11px] font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wider">
+                                  <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                                    <PenLine className="w-3 h-3" />
                                     Written so far
                                   </p>
                                   {typeMAccumulatedSections.map((sec, idx) => (
@@ -1702,13 +1709,14 @@ export default function ClientPage() {
                             plan={msg.agentPlan}
                           />
                         ) : isTypeMSelected && msg.sender === 'ai' && msg.documentPlan ? (
-                          <div className="rounded-lg border border-sky-200 dark:border-sky-900/50 overflow-hidden bg-white dark:bg-[#0a0f0d] px-3 py-2">
-                            <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-1">
+                          <div className="rounded-xl border border-amber-200/70 dark:border-amber-800/50 overflow-hidden bg-[#fefdfb] dark:bg-stone-900/90 px-3 py-2.5 shadow-sm">
+                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                              <PenLine className="w-3.5 h-3.5" />
                               Document
                             </p>
-                            <p className="text-sm font-medium text-sky-800 dark:text-sky-300">{msg.documentPlan.title}</p>
+                            <p className="text-sm font-medium text-stone-800 dark:text-stone-200">{msg.documentPlan.title}</p>
                             {msg.documentPlan.sections?.length > 0 && (
-                              <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1.5">
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1.5">
                                 Sections are listed below.
                               </p>
                             )}

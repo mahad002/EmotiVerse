@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Mail, BookOpen, PenLine, CheckCircle2, Zap, Users } from 'lucide-react';
+import { FileText, Mail, BookOpen, PenLine, CheckCircle2, PenTool, Users } from 'lucide-react';
 
 interface DashFrame {
   icon: React.ElementType;
   color: string;
   bg: string;
+  border: string;
   label: string;
   headline: string;
   subtext: string;
@@ -16,38 +17,41 @@ interface DashFrame {
 
 const dashFrames: DashFrame[] = [
   {
+    icon: Mail,
+    color: 'text-amber-800 dark:text-amber-300',
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    border: 'border-amber-200 dark:border-amber-800/50',
+    label: 'Letters & emails',
+    headline: 'Clear, ready to send.',
+    subtext: 'Professional emails and letters. We get your intent, then draft so you can edit and send.',
+    chips: ['Professional', 'Friendly', 'Concise'],
+  },
+  {
     icon: FileText,
-    color: 'text-sky-600 dark:text-sky-400',
-    bg: 'bg-sky-500/10 border border-sky-500/20',
-    label: 'What Type M Does',
-    headline: 'Write. Research. Refine.',
-    subtext: 'Emails, essays, reports, proposals, and documentation. High-quality writing for real use.',
-    chips: ['Emails', 'Essays', 'Reports', 'Proposals'],
+    color: 'text-stone-700 dark:text-stone-300',
+    bg: 'bg-stone-50 dark:bg-stone-900/40',
+    border: 'border-stone-200 dark:border-stone-700/50',
+    label: 'Docs & reports',
+    headline: 'Structure first, then fill in.',
+    subtext: 'Outlines turn into full sections. Each part is written and reviewed for clarity and tone.',
+    chips: ['Outline', 'Sections', 'Review'],
   },
   {
     icon: BookOpen,
-    color: 'text-indigo-600 dark:text-indigo-400',
-    bg: 'bg-indigo-500/10 border border-indigo-500/20',
-    label: 'Structured Documents',
-    headline: 'Outline → Sections → Review.',
-    subtext: 'Multi-section documents with clear structure. Each section is expanded and reviewed for clarity and tone.',
-    chips: ['Outline', 'Sections', 'Grammar', 'Tone'],
-  },
-  {
-    icon: PenLine,
-    color: 'text-violet-600 dark:text-violet-400',
-    bg: 'bg-violet-500/10 border border-violet-500/20',
-    label: 'For Everyone',
-    headline: 'Beginner-Friendly.',
-    subtext: 'Assume you’re new to writing or the topic. Type M adapts tone and complexity to your audience.',
-    chips: ['Formal', 'Friendly', 'Academic'],
+    color: 'text-amber-900 dark:text-amber-200',
+    bg: 'bg-amber-50/80 dark:bg-amber-950/30',
+    border: 'border-amber-200/80 dark:border-amber-800/40',
+    label: 'Essays & longer pieces',
+    headline: 'From idea to finished draft.',
+    subtext: 'Themes, arguments, and structure. We adapt to formal, academic, or casual style.',
+    chips: ['Formal', 'Academic', 'Casual'],
   },
 ];
 
 const stats = [
-  { icon: FileText, value: 'Doc', label: 'Multi-section' },
-  { icon: CheckCircle2, value: 'Review', label: 'Grammar + tone' },
-  { icon: Zap, value: 'Fast', label: 'Section by section' },
+  { icon: PenTool, value: 'Draft', label: 'Section by section' },
+  { icon: CheckCircle2, value: 'Review', label: 'Grammar & tone' },
+  { icon: FileText, value: 'Export', label: 'Plain text ready' },
 ];
 
 export default function TypeMDashboard() {
@@ -73,7 +77,7 @@ export default function TypeMDashboard() {
     if (isPaused) return;
     const id = setInterval(
       () => setCurrentFrame((p) => (p + 1) % dashFrames.length),
-      3200
+      3800
     );
     return () => clearInterval(id);
   }, [isPaused]);
@@ -83,91 +87,95 @@ export default function TypeMDashboard() {
 
   return (
     <div ref={sectionRef} className="relative w-full">
-      <div className="flex flex-col items-center gap-5 w-full py-2">
-        {/* Eyebrow */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 border border-sky-500/20 px-4 py-1.5">
-          <PenLine className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-          <span className="text-[11px] font-semibold tracking-widest text-sky-700 dark:text-sky-400 uppercase">
-            Type M · Writing & Research
+      {/* Subtle paper texture overlay (noise) */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl opacity-[0.03] dark:opacity-[0.04]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      <div className="relative flex flex-col items-center gap-5 w-full py-2">
+        {/* Eyebrow — pen + writing vibe */}
+        <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-900/80 border border-amber-200/80 dark:border-amber-800/40 shadow-sm px-4 py-1.5">
+          <PenLine className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+          <span className="text-[11px] font-semibold tracking-widest text-amber-800 dark:text-amber-300 uppercase">
+            Type M · Writing & research
           </span>
         </div>
 
         {/* Heading */}
         <div className="text-center space-y-1 px-4">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+          <h2 className="text-3xl font-bold text-stone-900 dark:text-stone-100 leading-tight">
             Your AI{' '}
-            <span className="bg-gradient-to-r from-sky-500 to-indigo-500 dark:from-sky-400 dark:to-indigo-400 text-transparent bg-clip-text">
-              Writing Partner.
-            </span>
+            <span className="text-amber-800 dark:text-amber-200">writing partner.</span>
           </h2>
-          <p className="text-sm text-gray-500 dark:text-slate-400 max-w-xs mx-auto">
-            Emails, essays, reports, proposals — clear, structured, and ready to use.
+          <p className="text-sm text-stone-600 dark:text-stone-400 max-w-xs mx-auto">
+            Letters, essays, docs — we draft, you refine.
           </p>
         </div>
 
-        {/* Card */}
+        {/* Card — paper sheet look */}
         <div
           className="w-1/2"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
           style={{
-            transform: `translate(${(mousePosition.x - 50) * 0.01}px, ${(mousePosition.y - 50) * 0.01}px)`,
+            transform: `translate(${(mousePosition.x - 50) * 0.008}px, ${(mousePosition.y - 50) * 0.008}px)`,
             transition: 'transform 0.3s ease-out',
           }}
         >
-          <div className="absolute inset-x-0 mx-auto h-40 w-72 rounded-full bg-sky-500/10 dark:bg-sky-500/15 blur-3xl pointer-events-none" />
-          <div className="relative rounded-[28px] bg-white dark:bg-[#0a0f0d] border border-sky-200 dark:border-sky-900/40 shadow-[0_8px_40px_rgba(14,165,233,0.1)] dark:shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden">
-            {/* Browser bar */}
-            <div className="px-4 py-2.5 flex items-center justify-between border-b border-sky-100 dark:border-white/5 bg-sky-50 dark:bg-sky-950/30">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-red-400/70" />
-                <span className="h-2 w-2 rounded-full bg-amber-400/70" />
-                <span className="h-2 w-2 rounded-full bg-sky-400/70" />
-                <span className="ml-2.5 text-[9px] uppercase tracking-[0.2em] text-sky-600 dark:text-sky-700 font-bold">
-                  Type M · Writing
+          <div className="relative rounded-2xl bg-[#fefdfb] dark:bg-stone-900/90 border border-amber-200/60 dark:border-amber-900/50 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden">
+            {/* Top bar — like letterhead */}
+            <div className="px-4 py-2.5 flex items-center justify-between border-b border-amber-100 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/30">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 border border-amber-200/60 dark:border-amber-800/40">
+                  <PenLine className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-amber-800 dark:text-amber-300 font-bold">
+                  Type M
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
-                <span className="text-[9px] text-sky-600 dark:text-sky-500 font-semibold">Ready</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[9px] text-stone-600 dark:text-stone-400 font-medium">Ready to write</span>
               </div>
             </div>
 
             {/* Rotating content */}
-            <div className="relative h-[220px] overflow-hidden">
+            <div className="relative h-[220px] overflow-hidden bg-[#fefdfb] dark:bg-stone-900/50">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentFrame}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="absolute inset-0 p-5 flex flex-col items-center justify-center gap-3 text-center w-full"
                 >
-                  <span className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-slate-500 font-semibold">
+                  <span className={`text-[10px] uppercase tracking-widest font-semibold ${frame.color}`}>
                     {frame.label}
                   </span>
                   <motion.div
-                    initial={{ scale: 0.75, opacity: 0 }}
+                    initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl ${frame.bg}`}
+                    transition={{ duration: 0.25 }}
+                    className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${frame.bg} border ${frame.border}`}
                   >
                     <FrameIcon className={`w-6 h-6 ${frame.color}`} />
                   </motion.div>
                   <motion.h3
-                    initial={{ opacity: 0, y: 6 }}
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.08 }}
-                    className="text-xl font-bold text-gray-900 dark:text-white leading-snug"
+                    transition={{ duration: 0.25, delay: 0.06 }}
+                    className="text-lg font-bold text-stone-900 dark:text-stone-100 leading-snug"
                   >
                     {frame.headline}
                   </motion.h3>
                   <motion.p
-                    initial={{ opacity: 0, y: 6 }}
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.14 }}
-                    className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed max-w-[240px]"
+                    transition={{ duration: 0.25, delay: 0.1 }}
+                    className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed max-w-[260px]"
                   >
                     {frame.subtext}
                   </motion.p>
@@ -175,13 +183,13 @@ export default function TypeMDashboard() {
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.22 }}
+                      transition={{ duration: 0.25, delay: 0.16 }}
                       className="flex flex-wrap justify-center gap-1.5"
                     >
                       {frame.chips.map((chip, i) => (
                         <span
                           key={i}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${frame.bg} ${frame.color}`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${frame.bg} border ${frame.border} ${frame.color}`}
                         >
                           {chip}
                         </span>
@@ -190,24 +198,20 @@ export default function TypeMDashboard() {
                   )}
                 </motion.div>
               </AnimatePresence>
-              <div className="h-7 flex items-end gap-0.5 opacity-[0.12] dark:opacity-[0.08] w-full px-5 pb-3">
-                {[...Array(18)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    animate={{ height: [12, 28, 18, 34, 16][i % 5] }}
-                    transition={{ duration: 2.2, repeat: Infinity, repeatType: 'reverse', delay: i * 0.07 }}
-                    className="w-full bg-sky-500 dark:bg-sky-400 rounded-t-sm"
-                  />
+              {/* Decorative ruled lines (paper feel) */}
+              <div className="absolute bottom-0 left-0 right-0 h-8 flex flex-col justify-end gap-px px-5 pb-2 opacity-20 dark:opacity-10">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-px bg-stone-400 dark:bg-stone-500" />
                 ))}
               </div>
             </div>
 
-            {/* Status bar */}
-            <div className="px-5 py-2.5 flex items-center justify-between border-t border-sky-100 dark:border-white/5 bg-sky-50/80 dark:bg-sky-950/20">
+            {/* Footer — page vibe */}
+            <div className="px-4 py-2 flex items-center justify-between border-t border-amber-100 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20">
               <div className="flex items-center gap-1.5">
-                <FileText className="w-3 h-3 text-sky-600 dark:text-sky-500" />
-                <span className="text-[9px] uppercase tracking-widest text-sky-600 dark:text-sky-500 font-bold">
-                  Type M
+                <PenLine className="w-3 h-3 text-amber-600 dark:text-amber-500" />
+                <span className="text-[9px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-semibold">
+                  Writing partner
                 </span>
               </div>
               <div className="flex gap-1">
@@ -219,7 +223,7 @@ export default function TypeMDashboard() {
                       setIsPaused(true);
                     }}
                     className={`h-1 rounded-full transition-all duration-300 ${
-                      currentFrame === i ? 'w-4 bg-sky-500' : 'w-1 bg-sky-300/40 dark:bg-white/15'
+                      currentFrame === i ? 'w-4 bg-amber-600 dark:bg-amber-500' : 'w-1 bg-amber-300/50 dark:bg-stone-600'
                     }`}
                   />
                 ))}
@@ -228,33 +232,25 @@ export default function TypeMDashboard() {
           </div>
         </div>
 
-        {/* Stat pills */}
+        {/* Stat pills — ink/paper style */}
         <div className="flex items-center gap-3 flex-wrap justify-center">
           {stats.map((s, i) => (
             <div
               key={i}
-              className="flex items-center gap-1.5 rounded-full bg-sky-500/5 border border-sky-500/20 px-3 py-1.5"
+              className="flex items-center gap-1.5 rounded-full bg-white dark:bg-stone-800/80 border border-amber-200/60 dark:border-amber-800/40 px-3 py-1.5 shadow-sm"
             >
-              <s.icon className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-              <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">{s.value}</span>
-              <span className="text-[11px] text-gray-500 dark:text-slate-500">{s.label}</span>
+              <s.icon className="w-3 h-3 text-amber-700 dark:text-amber-400" />
+              <span className="text-[11px] font-bold text-stone-800 dark:text-stone-200">{s.value}</span>
+              <span className="text-[11px] text-stone-500 dark:text-stone-400">{s.label}</span>
             </div>
           ))}
         </div>
 
         {/* Online pill */}
-        <div className="flex items-center gap-2 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-2">
-          <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-          <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Type M is online</span>
-          <div className="flex gap-0.5 ml-0.5">
-            {[0, 1].map((i) => (
-              <span
-                key={i}
-                className="h-2 w-2 rounded-full bg-sky-500 animate-pulse"
-                style={{ animationDelay: `${i * 0.3}s` }}
-              />
-            ))}
-          </div>
+        <div className="flex items-center gap-2 rounded-full bg-white dark:bg-stone-800/80 border border-amber-200/50 dark:border-amber-800/30 px-4 py-2 shadow-sm">
+          <Users className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+          <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">Type M is online</span>
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
         </div>
       </div>
     </div>
