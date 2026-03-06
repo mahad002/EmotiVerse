@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import EmotiDashboard from '@/components/emoti-dashboard';
 
@@ -100,8 +101,16 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const router = useRouter();
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/app');
+    }
+  }, [user, router]);
 
   // Login form
   const {
@@ -147,6 +156,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await signInWithEmailAndPassword(auth!, email, password);
+      router.push('/app');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       toast({ title: 'Sign-in failed', description: firebaseErrorMessage(code), variant: 'destructive' });
@@ -161,6 +171,7 @@ export default function LoginPage() {
       const cred = await createUserWithEmailAndPassword(auth!, email, password);
       await updateProfile(cred.user, { displayName: name });
       await saveUserProfile(cred.user.uid, { name, phone, email });
+      router.push('/app');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       toast({ title: 'Registration failed', description: firebaseErrorMessage(code), variant: 'destructive' });
@@ -190,6 +201,7 @@ export default function LoginPage() {
         },
         { merge: true }
       );
+      router.push('/app');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code !== 'auth/popup-closed-by-user') {
