@@ -5,7 +5,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'mahad112002@gmail.com';
+      return request.auth != null && (
+        request.auth.uid == 'FFhIFJ1m6ncrAH4PtC6rqfWEXws2' ||
+        request.auth.token.email == 'mahad112002@gmail.com'
+      );
     }
     match /users/{userId} {
       allow read: if request.auth != null && (

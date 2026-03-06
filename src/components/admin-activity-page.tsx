@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, getDocs, query, updateDoc, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, where, orderBy, limit } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,6 +10,7 @@ import { db } from '@/lib/firebase';
 import { characters } from '@/config/characters';
 import { ADMIN_EMAIL } from '@/config/admin';
 import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Loader2, UserCircle } from 'lucide-react';
 
 interface ActivityUser {
@@ -49,6 +50,7 @@ function characterNameFromId(id: string): string {
 
 export function AdminActivityPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [users, setUsers] = useState<ActivityUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -102,10 +104,12 @@ export function AdminActivityPage() {
   const setUserTracked = async (userId: string, tracked: boolean) => {
     if (!db) return;
     try {
-      await updateDoc(doc(db, 'users', userId), { tracked });
+      await setDoc(doc(db, 'users', userId), { tracked }, { merge: true });
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isTracked: tracked } : u)));
-    } catch {
-      // Fail silently; admin can retry
+      toast({ title: tracked ? 'Tracking enabled' : 'Tracking disabled', variant: 'default' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Update failed';
+      toast({ title: 'Could not update tracked', description: msg, variant: 'destructive' });
     }
   };
 
