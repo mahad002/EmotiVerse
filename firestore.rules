@@ -1,18 +1,25 @@
 rules_version = '2';
 // Deploy: firebase deploy --only firestore:rules
-// Admin (mahad112002@gmail.com): can read all users and all activity_logs.
-// Others: own user doc only; no activity_logs.
+// Admin: can read all users and activity_logs; can set users.tracked.
+// Users: own doc read/write, but cannot change the 'tracked' field.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'mahad112002@gmail.com';
+    }
     match /users/{userId} {
       allow read: if request.auth != null && (
-        request.auth.uid == userId ||
-        request.auth.token.email == 'mahad112002@gmail.com'
+        request.auth.uid == userId || isAdmin()
       );
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tracked']))
+        || isAdmin()
+      );
+      allow delete: if isAdmin();
     }
     match /activity_logs/{document} {
-      allow read: if request.auth != null && request.auth.token.email == 'mahad112002@gmail.com';
+      allow read: if request.auth != null && isAdmin();
       allow write: if false;
     }
     match /{document=**} {

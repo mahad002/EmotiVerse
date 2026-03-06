@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where, orderBy, limit } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -61,21 +61,12 @@ export function AdminActivityPage() {
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   useEffect(() => {
-    if (!isAdmin || !db || !user) return;
+    if (!isAdmin || !db) return;
     let cancelled = false;
     setUsersLoading(true);
     setUsersError(null);
-    const trackedEmailPromise = user
-      .getIdToken()
-      .then((token) =>
-        fetch('/api/admin/tracked-email', { headers: { Authorization: `Bearer ${token}` } })
-      )
-      .then((res) => (res.ok ? res.json() : { email: '' }))
-      .then((data: { email?: string }) => (data.email ?? '').trim())
-      .catch(() => '');
-    const usersPromise = getDocs(collection(db, 'users'));
-    Promise.all([trackedEmailPromise, usersPromise])
-      .then(([trackedEmail, snap]) => {
+    getDocs(collection(db, 'users'))
+      .then((snap) => {
         if (cancelled) return;
         const list: ActivityUser[] = snap.docs.map((docSnap) => {
           const d = docSnap.data();
@@ -94,7 +85,7 @@ export function AdminActivityPage() {
             phone: (d.phone ?? '').toString(),
             createdAt: toIso(d.createdAt),
             updatedAt: toIso(d.updatedAt),
-            isTracked: !!trackedEmail && email === trackedEmail,
+            isTracked: d.tracked === true,
           };
         });
         setUsers(list);
@@ -106,7 +97,17 @@ export function AdminActivityPage() {
         if (!cancelled) setUsersLoading(false);
       });
     return () => { cancelled = true; };
-  }, [isAdmin, user]);
+  }, [isAdmin]);
+
+  const setUserTracked = async (userId: string, tracked: boolean) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), { tracked });
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isTracked: tracked } : u)));
+    } catch {
+      // Fail silently; admin can retry
+    }
+  };
 
   const selectedUser = useMemo(
     () => users.find((u) => u.id === selectedUserId) ?? null,
@@ -201,10 +202,8 @@ export function AdminActivityPage() {
               <ScrollArea className="h-full pr-1">
                 <div className="space-y-1.5">
                   {users.map((u) => (
-                    <button
+                    <div
                       key={u.id}
-                      type="button"
-                      onClick={() => setSelectedUserId(u.id)}
                       className={cn(
                         'flex w-full items-center gap-2 rounded-md border px-2 py-2 text-left text-xs transition-colors',
                         'hover:bg-muted/70',
@@ -212,27 +211,45 @@ export function AdminActivityPage() {
                         !u.isTracked && (selectedUserId === u.id ? 'border-primary bg-primary/5' : 'border-border bg-background/40')
                       )}
                     >
-                      <div className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-full',
-                        u.isTracked ? 'bg-amber-500/20' : 'bg-primary/10'
-                      )}>
-                        <UserCircle className={cn('h-4 w-4', u.isTracked ? 'text-amber-600 dark:text-amber-400' : 'text-primary')} />
-                      </div>
-                      <div className="flex-1 space-y-0.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-xs font-medium">{u.name || '—'}</span>
-                          {u.isTracked && (
-                            <Badge variant="outline" className="border-amber-500/70 bg-amber-500/10 text-[10px]">
-                              Tracked
-                            </Badge>
-                          )}
+                      <button
+                        type="button"
+                        className="flex flex-1 min-w-0 items-center gap-2 text-left"
+                        onClick={() => setSelectedUserId(u.id)}
+                      >
+                        <div className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                          u.isTracked ? 'bg-amber-500/20' : 'bg-primary/10'
+                        )}>
+                          <UserCircle className={cn('h-4 w-4', u.isTracked ? 'text-amber-600 dark:text-amber-400' : 'text-primary')} />
                         </div>
-                        <p className="truncate text-[11px] text-muted-foreground">{u.email || '—'}</p>
-                        <p className="truncate text-[10px] text-muted-foreground/80">
-                          {u.phone || '—'}
-                        </p>
-                      </div>
-                    </button>
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-xs font-medium">{u.name || '—'}</span>
+                            {u.isTracked && (
+                              <Badge variant="outline" className="shrink-0 border-amber-500/70 bg-amber-500/10 text-[10px]">
+                                Tracked
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="truncate text-[11px] text-muted-foreground">{u.email || '—'}</p>
+                          <p className="truncate text-[10px] text-muted-foreground/80">
+                            {u.phone || '—'}
+                          </p>
+                        </div>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 h-7 text-[10px] px-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUserTracked(u.id, !u.isTracked);
+                        }}
+                      >
+                        {u.isTracked ? 'Untrack' : 'Track'}
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </ScrollArea>
@@ -258,14 +275,25 @@ export function AdminActivityPage() {
                     Joined {formatDateTime(selectedUser.createdAt)} · Updated {formatDateTime(selectedUser.updatedAt)}
                   </p>
                 </div>
-                {selectedUser.isTracked && (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/80 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                <div className="flex items-center gap-2">
+                  {selectedUser.isTracked && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/80 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                    >
+                      Tagged / Tracked
+                    </Badge>
+                  )}
+                  <Button
+                    type="button"
+                    variant={selectedUser.isTracked ? 'outline' : 'default'}
+                    size="sm"
+                    className="text-[10px]"
+                    onClick={() => setUserTracked(selectedUser.id, !selectedUser.isTracked)}
                   >
-                    Tagged / Tracked
-                  </Badge>
-                )}
+                    {selectedUser.isTracked ? 'Untrack' : 'Track'}
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
