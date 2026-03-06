@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
                 : output.files?.length
                   ? `Generated ${output.files.length} file(s).`
                   : '';
-            void appendActivityLog({
+            await appendActivityLog({
               uid: decoded.uid,
               email: decoded.email,
               characterId,

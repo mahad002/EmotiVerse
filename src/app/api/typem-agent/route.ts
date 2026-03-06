@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
                 : output.type === 'document' && output.sections?.length
                   ? output.sections.map((s: { content?: string }) => s.content ?? '').join('\n\n')
                   : '';
-            void appendActivityLog({
+            await appendActivityLog({
               uid: decoded.uid,
               email: decoded.email,
               characterId,

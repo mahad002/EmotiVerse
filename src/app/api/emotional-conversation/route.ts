@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         role: (m.sender === 'user' ? 'user' : 'ai') as 'user' | 'ai',
         text: m.text,
       }));
-      void appendActivityLog({
+      await appendActivityLog({
         uid: decoded.uid,
         email: decoded.email,
         characterId: body.characterId,

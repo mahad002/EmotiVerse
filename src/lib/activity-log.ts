@@ -25,16 +25,21 @@ export interface AppendActivityLogData {
 
 /**
  * If the user's document has tracked === true, appends one document to activity_logs.
- * Text only; no images or voice. Call with void (fire-and-forget); do not await before responding.
+ * Returns a promise so callers can await and ensure the write completes before responding.
  */
-export function appendActivityLog(data: AppendActivityLogData): void {
+export function appendActivityLog(data: AppendActivityLogData): Promise<void> {
   const db = getAdminFirestore();
-  if (!db) return;
-  db.collection(USERS_COLLECTION)
+  if (!db) return Promise.resolve();
+  return db
+    .collection(USERS_COLLECTION)
     .doc(data.uid)
     .get()
     .then((snap) => {
-      const tracked = snap.exists && snap.data()?.tracked === true;
+      const raw = snap.exists ? snap.data()?.tracked : undefined;
+      const tracked = raw === true || raw === 'true';
+      if (process.env.NODE_ENV === 'development' && !tracked) {
+        console.warn('[activity-log] User not tracked, skip logging. uid=%s tracked=%s', data.uid, raw);
+      }
       if (!tracked) return;
       const payload = {
         userId: data.uid,
@@ -48,7 +53,10 @@ export function appendActivityLog(data: AppendActivityLogData): void {
       };
       return db.collection(COLLECTION).add(payload);
     })
-    .catch(() => {
-      // Fire-and-forget; avoid leaking errors into response
+    .then(() => {})
+    .catch((err) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[activity-log]', err);
+      }
     });
 }
