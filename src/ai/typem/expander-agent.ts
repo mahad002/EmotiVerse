@@ -10,22 +10,37 @@ import type { DocumentPlan, OutlineSection } from './types';
 const EXPANDER_MODEL_ENV = 'LITELLM_VALIDATOR_MODEL';
 const EXPANDER_DEFAULT = 'gemma-3-27b-it';
 
+const PREVIOUS_SECTION_MAX_CHARS = 400;
+
 export async function expandSection(
   section: OutlineSection,
   plan: DocumentPlan,
   contextBlob: string,
-  fixPrompt?: string
+  fixPrompt?: string,
+  previousSectionContent?: string,
+  nextSectionTitle?: string
 ): Promise<string> {
   const model =
     process.env[EXPANDER_MODEL_ENV] ||
     process.env.LITELLM_CHAT_MODEL ||
     EXPANDER_DEFAULT;
 
+  let continuityContext = '';
+  if (previousSectionContent && previousSectionContent.trim()) {
+    const snippet = previousSectionContent.trim().length > PREVIOUS_SECTION_MAX_CHARS
+      ? previousSectionContent.trim().slice(-PREVIOUS_SECTION_MAX_CHARS)
+      : previousSectionContent.trim();
+    continuityContext += `\nPrevious section (end):\n${snippet}\n\nContinue naturally from this; avoid repeating the same points.\n`;
+  }
+  if (nextSectionTitle && nextSectionTitle.trim()) {
+    continuityContext += `\nNext section title: ${nextSectionTitle.trim()}\nLead into this topic without writing the next section's content.\n`;
+  }
+
   const systemPrompt = `You are Type M, a writing assistant. Expand the given section into full, well-written prose.
 Document title: ${plan.title}
 Section: ${section.title}
 Section description: ${section.description}
-
+${continuityContext}
 ${contextBlob ? `Relevant context from other sections or notes:\n${contextBlob}` : ''}
 ${fixPrompt ? `Revise to address these issues:\n${fixPrompt}\n\n` : ''}
 

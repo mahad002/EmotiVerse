@@ -12,6 +12,7 @@ import { classifyWritingIntent } from './intent-classifier';
 import { createDocumentPlan } from './outliner-agent';
 import { expandSection } from './expander-agent';
 import { reviewSection } from './reviewer-agent';
+import { runCoherencePass } from './coherence-agent';
 import type {
   AgentInput,
   AgentOutput,
@@ -102,11 +103,16 @@ export async function runTypeMAgent(
           ? contextResults.map((r) => `--- ${r.path} ---\n${r.content}`).join('\n\n')
           : '';
 
+        const previousSectionContent = i > 0 ? sections[i - 1].content : undefined;
+        const nextSectionTitle = i < plan.sections.length - 1 ? plan.sections[i + 1].title : undefined;
+
         content = await expandSection(
           outlineSection,
           plan,
           contextBlob,
-          fixPrompt
+          fixPrompt,
+          previousSectionContent,
+          nextSectionTitle
         );
 
         onProgress?.({ stage: 'reviewing', sectionId: outlineSection.id });
@@ -144,16 +150,46 @@ export async function runTypeMAgent(
       onProgress?.({ stage: 'section_generated', sections: [section] });
     }
 
-    const fullDocument = sections
+    let fullDocument = sections
       .map((s) => `## ${s.title}\n\n${s.content}`)
       .join('\n\n---\n\n');
+
+    let finalSections = sections;
+
+    try {
+      onProgress?.({ stage: 'coherence' });
+      const revised = await runCoherencePass(fullDocument, plan.title);
+      if (revised && revised.trim().length > 0) {
+        fullDocument = revised.trim();
+        const parts = fullDocument.split(/\n##\s+/);
+        if (parts.length >= 1 && parts.length - 1 === plan.sections.length) {
+          const rebuilt: DocumentSection[] = [];
+          for (let idx = 0; idx < plan.sections.length; idx++) {
+            const segment = parts[idx + 1] ?? '';
+            const firstNewline = segment.indexOf('\n\n');
+            const title = firstNewline >= 0 ? segment.slice(0, firstNewline).trim() : segment.trim();
+            let content = firstNewline >= 0 ? segment.slice(firstNewline + 2) : '';
+            content = content.replace(/\n\n---\n\n$/, '').trim();
+            rebuilt.push({
+              id: plan.sections[idx].id,
+              title: title || plan.sections[idx].title,
+              description: plan.sections[idx].description,
+              content,
+            });
+          }
+          finalSections = rebuilt;
+        }
+      }
+    } catch {
+      // Keep original fullDocument and sections
+    }
 
     onProgress?.({ stage: 'complete' });
     return {
       type: 'document',
-      response: `Generated document "${plan.title}" with ${sections.length} section(s).`,
+      response: `Generated document "${plan.title}" with ${finalSections.length} section(s).`,
       fullDocument,
-      sections,
+      sections: finalSections,
       plan,
     };
   } catch (err) {

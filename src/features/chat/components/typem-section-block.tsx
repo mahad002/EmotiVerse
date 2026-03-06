@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { buildSectionPdf } from '@/lib/typem-pdf';
 import { Copy, Check, Download, FileDown, PenLine } from 'lucide-react';
@@ -93,8 +95,26 @@ export function TypeMSectionBlock({
         </div>
       </div>
       <div className="overflow-auto bg-[#faf8f5] dark:bg-[#141210] min-h-[60px] max-h-[50vh]">
-        <div className="p-3 text-[13px] leading-relaxed whitespace-pre-wrap break-words text-stone-800 dark:text-[#e8e6e3]">
-          {content ? content : <span className="text-stone-500 dark:text-stone-400">(empty)</span>}
+        <div className="p-3 text-[13px] leading-relaxed break-words text-stone-800 dark:text-[#e8e6e3] [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_p]:my-1.5 [&_strong]:font-semibold [&_a]:text-amber-700 [&_a]:dark:text-amber-400 [&_a]:underline">
+          {content ? (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ children }) => <h3 className="typem-prose-h3 text-base font-semibold mt-2 mb-1 text-amber-900 dark:text-amber-200">{children}</h3>,
+                h2: ({ children }) => <h3 className="typem-prose-h3">{children}</h3>,
+                h3: ({ children }) => <h3 className="typem-prose-h3">{children}</h3>,
+                p: ({ children }) => <p className="my-1.5">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-5 my-1.5">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5">{children}</ol>,
+                li: ({ children }) => <li className="my-0.5">{children}</li>,
+                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          ) : (
+            <span className="text-stone-500 dark:text-stone-400">(empty)</span>
+          )}
         </div>
       </div>
     </div>

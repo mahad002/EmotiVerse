@@ -11,6 +11,7 @@ export type TypeMPipelineStage =
   | 'reviewing'
   | 'fixing'
   | 'section_generated'
+  | 'coherence'
   | 'complete'
   | null;
 
@@ -44,6 +45,8 @@ function stageLabel(props: TypeMProgressProps): string {
       return attempt != null && attempt > 0 ? `Revising (draft ${attempt + 1})…` : 'Revising…';
     case 'section_generated':
       return 'Section done.';
+    case 'coherence':
+      return 'Polishing document…';
     case 'complete':
       return 'All set.';
     default:

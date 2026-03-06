@@ -49,6 +49,7 @@ export type ProgressEvent =
   | { stage: 'reviewing'; sectionId: string }
   | { stage: 'fixing'; sectionId: string; attempt: number }
   | { stage: 'section_generated'; sections: DocumentSection[] }
+  | { stage: 'coherence' }
   | { stage: 'complete' };
 
 export type AgentOutputType = 'simple' | 'document';
