@@ -153,6 +153,8 @@ export default function ClientPage() {
   const [imageSubMode, setImageSubMode] = useState<'photo' | 'generate'>('photo');
   const [imageGenQuality, setImageGenQuality] = useState<'high' | 'fast'>('fast');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  /** One session id per character for emotional chat (stable until reload). */
+  const emotionalSessionIdsRef = useRef<Record<string, string>>({});
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
 
   /** True from sending a voice response until TTS is done (so "Recording" stays visible during TTS). */
@@ -992,6 +994,7 @@ export default function ClientPage() {
               persona: activePersona.systemPrompt,
               characterId: selectedCharacterId,
               history,
+              sessionId: emotionalSessionIdsRef.current[selectedCharacterId] ??= `emotional-${selectedCharacterId}-${Date.now()}`,
               respondWithVoice: true,
             } as EmotionalConversationInput & { respondWithVoice?: boolean });
           })
@@ -1061,6 +1064,7 @@ export default function ClientPage() {
         characterId: selectedCharacterId,
         history,
         imageDataUri: imageUri,
+        sessionId: emotionalSessionIdsRef.current[selectedCharacterId] ??= `emotional-${selectedCharacterId}-${Date.now()}`,
         respondWithVoice,
       } as EmotionalConversationInput & { respondWithVoice?: boolean });
       return;
@@ -1146,6 +1150,7 @@ export default function ClientPage() {
       persona: activePersona.systemPrompt,
       characterId: selectedCharacterId,
       history,
+      sessionId: emotionalSessionIdsRef.current[selectedCharacterId] ??= `emotional-${selectedCharacterId}-${Date.now()}`,
       respondWithVoice,
     } as EmotionalConversationInput & { respondWithVoice?: boolean });
   };

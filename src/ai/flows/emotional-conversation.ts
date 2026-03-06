@@ -31,6 +31,7 @@ const EmotionalConversationInputSchema = z.object({
     )
     .optional(),
   imageDataUri: z.string().optional().describe('Optional image data URI (e.g. send photo for vision).'),
+  sessionId: z.string().optional().describe('Stable session id for this chat (e.g. until reload).'),
 });
 export type EmotionalConversationInput = z.infer<
   typeof EmotionalConversationInputSchema

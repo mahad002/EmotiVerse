@@ -9,21 +9,17 @@ export async function POST(request: NextRequest) {
     const result = await emotionalConversation(body);
     const decoded = await getDecodedIdToken(request);
     if (decoded) {
-      const historyMessages = (body.history ?? []).map((m) => ({
-        role: (m.sender === 'user' ? 'user' : 'ai') as 'user' | 'ai',
-        text: m.text,
-      }));
       await appendActivityLog({
         uid: decoded.uid,
         email: decoded.email,
         characterId: body.characterId,
         persona: body.persona,
         messages: [
-          ...historyMessages,
           { role: 'user', text: body.message },
           { role: 'ai', text: (result.response ?? []).join(' ') },
         ],
         source: 'emotional',
+        sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
       });
     }
     return NextResponse.json(result);

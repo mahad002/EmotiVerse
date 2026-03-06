@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, getDocs, query, setDoc, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, where, orderBy, limit } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,6 +33,16 @@ interface ActivityLog {
   timestamp: string | null;
   characterId: string;
   persona?: string | null;
+  sessionId?: string | null;
+  messages: ActivityLogMessage[];
+}
+
+/** One thread per session: all entries in the session merged into one ordered message list. */
+interface ActivitySession {
+  key: string;
+  characterId: string;
+  persona: string | null;
+  startTimestamp: string | null;
   messages: ActivityLogMessage[];
 }
 
@@ -123,7 +133,6 @@ export function AdminActivityPage() {
       setLogs([]);
       return;
     }
-    let cancelled = false;
     setLogsLoading(true);
     setLogsError(null);
     const q = query(
@@ -132,9 +141,9 @@ export function AdminActivityPage() {
       orderBy('timestamp', 'desc'),
       limit(100)
     );
-    getDocs(q)
-      .then((snap) => {
-        if (cancelled) return;
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
         const list: ActivityLog[] = snap.docs.map((docSnap) => {
           const d = docSnap.data();
           let timestamp: string | null = null;
@@ -147,19 +156,46 @@ export function AdminActivityPage() {
             timestamp,
             characterId: (d.characterId ?? '').toString(),
             persona: d.persona ?? null,
+            sessionId: d.sessionId ?? null,
             messages: Array.isArray(d.messages) ? d.messages.map((m: { role: string; text: string }) => ({ role: m.role, text: m.text })) : [],
           };
         });
         setLogs(list);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setLogsError(err instanceof Error ? err.message : 'Failed to load activity');
-      })
-      .finally(() => {
-        if (!cancelled) setLogsLoading(false);
-      });
-    return () => { cancelled = true; };
+        setLogsLoading(false);
+      },
+      (err: unknown) => {
+        setLogsError(err instanceof Error ? err.message : 'Failed to load activity');
+        setLogsLoading(false);
+      }
+    );
+    return () => unsubscribe();
   }, [isAdmin, selectedUser?.email]);
+
+  const sessions = useMemo((): ActivitySession[] => {
+    if (!logs.length) return [];
+    const byKey = new Map<string, ActivityLog[]>();
+    for (const log of logs) {
+      const key = log.sessionId ?? `legacy-${log.characterId}-${log.timestamp?.slice(0, 10) ?? ''}-${log.id}`;
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(log);
+    }
+    const result: ActivitySession[] = [];
+    for (const [, entries] of byKey) {
+      const sorted = [...entries].sort((a, b) => (a.timestamp ?? '').localeCompare(b.timestamp ?? ''));
+      const first = sorted[0];
+      const messages: ActivityLogMessage[] = [];
+      for (const e of sorted) messages.push(...e.messages);
+      result.push({
+        key: first.sessionId ?? first.id,
+        characterId: first.characterId,
+        persona: first.persona ?? null,
+        startTimestamp: sorted[0]?.timestamp ?? null,
+        messages,
+      });
+    }
+    result.sort((a, b) => (b.startTimestamp ?? '').localeCompare(a.startTimestamp ?? ''));
+    return result;
+  }, [logs]);
 
   if (!isAdmin) {
     return (
@@ -304,24 +340,8 @@ export function AdminActivityPage() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Activity</p>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground">
-                    {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
+                    {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'} · live
                   </span>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    disabled={logsLoading}
-                    onClick={() => {
-                      // Re-trigger logs fetch by resetting selection
-                      setSelectedUserId((id) => (id ? `${id}` : id));
-                    }}
-                  >
-                    {logsLoading ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <span className="text-[11px]">Refresh</span>
-                    )}
-                  </Button>
                 </div>
               </div>
 
@@ -333,39 +353,39 @@ export function AdminActivityPage() {
                 <div className="flex flex-1 items-center justify-center px-3 text-xs text-destructive">
                   {logsError}
                 </div>
-              ) : logs.length === 0 ? (
+              ) : sessions.length === 0 ? (
                 <div className="flex flex-1 items-center justify-center px-3 text-xs text-muted-foreground">
                   No activity logs for this user yet.
                 </div>
               ) : (
                 <ScrollArea className="flex-1 pr-2">
                   <div className="space-y-3 pb-2">
-                    {logs.map((log) => (
+                    {sessions.map((session) => (
                       <div
-                        key={log.id}
+                        key={session.key}
                         className="rounded-md border border-border bg-background/80 p-2.5 text-xs shadow-sm"
                       >
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                           <div className="space-y-0.5">
                             <p className="text-[11px] font-medium">
-                              {characterNameFromId(log.characterId)}{' '}
-                              <span className="text-[10px] text-muted-foreground">({log.characterId})</span>
+                              {characterNameFromId(session.characterId)}{' '}
+                              <span className="text-[10px] text-muted-foreground">({session.characterId})</span>
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              {formatDateTime(log.timestamp)}
+                              {formatDateTime(session.startTimestamp)}
                             </p>
                           </div>
-                          {log.persona ? (
+                          {session.persona ? (
                             <Badge
                               variant="outline"
                               className="border-emerald-500/70 bg-emerald-500/10 px-1.5 py-0 text-[10px]"
                             >
-                              Tone: {log.persona}
+                              Tone: {session.persona}
                             </Badge>
                           ) : null}
                         </div>
                         <div className="space-y-1.5">
-                          {log.messages.map((m, idx) => (
+                          {session.messages.map((m, idx) => (
                             <div
                               key={idx}
                               className={cn(
