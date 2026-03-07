@@ -14,6 +14,8 @@ export interface CharacterCapabilities {
   fixedPersonaId: string | null;
   /** Terminal/Code M theme (emerald, monospace, dashboard). */
   useTerminalTheme: boolean;
+  /** Mahad theme: vibrant gradient/chat UI with persona-driven styling. */
+  useMahadTheme: boolean;
   /** Writing/Type M theme: paper background, letter-style UI. */
   useWritingTheme: boolean;
   /** Show dashboard (e.g. HeroDashboard) above messages. Code M only. */
@@ -37,6 +39,7 @@ const CODEM_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: 'codem-technical-expert',
   useTerminalTheme: true,
+  useMahadTheme: false,
   useWritingTheme: false,
   showDashboardAboveMessages: true,
   showToneSelector: false,
@@ -52,8 +55,9 @@ const MAHAD_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: true,
   fixedPersonaId: null,
   useTerminalTheme: false,
+  useMahadTheme: true,
   useWritingTheme: false,
-  showDashboardAboveMessages: false,
+  showDashboardAboveMessages: true,
   showToneSelector: true,
   statusLabelPending: 'Recording…',
   statusLabelReady: null,
@@ -67,6 +71,7 @@ const SARA_DEFAULT_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: null,
   useTerminalTheme: false,
+  useMahadTheme: false,
   useWritingTheme: false,
   showDashboardAboveMessages: false,
   showToneSelector: true,
@@ -82,6 +87,7 @@ const TYPEM_CAPABILITIES: CharacterCapabilities = {
   supportsImageMode: false,
   fixedPersonaId: 'typem-writing-expert',
   useTerminalTheme: false,
+  useMahadTheme: false,
   useWritingTheme: true,
   showDashboardAboveMessages: true,
   showToneSelector: false,

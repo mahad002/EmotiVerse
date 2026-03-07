@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Copy, Check, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { MessageSegment } from '@/features/chat/lib/chat-types';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Copy, Check, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { MessageSegment } from "@/features/chat/lib/chat-types";
 
 export interface CodeMCodeBlockProps {
-  segment: Extract<MessageSegment, { type: 'code' }>;
+  segment: Extract<MessageSegment, { type: "code" }>;
   className?: string;
 }
 
@@ -17,8 +17,8 @@ export interface CodeMCodeBlockProps {
 export function CodeMCodeBlock({ segment, className }: CodeMCodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const { code, language, filename } = segment;
-  const label = filename ?? (language || 'code');
-  const text = typeof code === 'string' ? code : '';
+  const label = filename ?? (language || "code");
+  const text = typeof code === "string" ? code : "";
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(text);
@@ -27,10 +27,11 @@ export function CodeMCodeBlock({ segment, className }: CodeMCodeBlockProps) {
   };
 
   const handleDownload = () => {
-    const name = (filename || language || 'code').replace(/^.*[/\\]/, '') || 'code.txt';
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const name =
+      (filename || language || "code").replace(/^.*[/\\]/, "") || "code.txt";
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = name;
     a.click();
@@ -40,10 +41,10 @@ export function CodeMCodeBlock({ segment, className }: CodeMCodeBlockProps) {
   return (
     <div
       className={cn(
-        'rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-900/50',
-        'bg-white dark:bg-[#0a0f0d] shadow-sm',
-        'my-1.5 min-w-0 max-w-full',
-        className
+        "rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-900/50",
+        "bg-white dark:bg-[#0a0f0d] shadow-sm",
+        "my-1.5 w-full min-w-0 max-w-full",
+        className,
       )}
     >
       {/* Header: filename/language + copy + download */}
@@ -70,15 +71,18 @@ export function CodeMCodeBlock({ segment, className }: CodeMCodeBlockProps) {
             onClick={handleCopy}
             aria-label="Copy code"
           >
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
           </Button>
         </div>
       </div>
-      {/* Code area: explicit colors and scroll so content is always visible */}
-      <div className="overflow-auto bg-slate-100 dark:bg-[#0d1117] min-h-[120px] max-h-[70vh]">
-        <pre className="p-3 m-0 text-[13px] leading-relaxed font-mono whitespace-pre break-words">
+      <div className="w-full min-w-0 overflow-auto bg-slate-100 dark:bg-[#0d1117] min-h-[120px] max-h-[70vh]">
+        <pre className="p-3 m-0 text-[13px] leading-relaxed font-mono whitespace-pre-wrap break-words min-w-0">
           <code className="text-slate-800 dark:text-slate-200">
-            {text || '(empty)'}
+            {text || "(empty)"}
           </code>
         </pre>
       </div>

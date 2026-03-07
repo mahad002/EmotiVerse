@@ -48,12 +48,18 @@ function extractJson(content: string): string {
 
 export async function planSimple(
   message: string,
-  _intent: IntentResult
+  _intent: IntentResult,
+  history?: { sender: string; text: string }[]
 ): Promise<SimplePlan> {
+  const userContent =
+    history?.length &&
+    (history.some((h) => h.sender !== 'user') || history.length > 1)
+      ? `Recent context:\n${history.slice(-6).map((h) => `${h.sender}: ${h.text.slice(0, 500)}${h.text.length > 500 ? '...' : ''}`).join('\n')}\n\nUser message to plan for:\n${message}`
+      : message;
   const content = await litellmChatCompletion({
     messages: [
       { role: 'system', content: SIMPLE_SYSTEM },
-      { role: 'user', content: message },
+      { role: 'user', content: userContent },
     ],
     modelEnvKey: 'LITELLM_PLANNER_MODEL',
     defaultModel: 'gpt-oss-120b',
@@ -84,12 +90,18 @@ export async function planSimple(
 
 export async function planProject(
   message: string,
-  intent: IntentResult
+  intent: IntentResult,
+  history?: { sender: string; text: string }[]
 ): Promise<ProjectPlan> {
+  const contextBlob =
+    history?.length &&
+    history.some((h) => h.sender !== 'user')
+      ? `Recent context:\n${history.slice(-4).map((h) => `${h.sender}: ${h.text.slice(0, 300)}${h.text.length > 300 ? '...' : ''}`).join('\n')}\n\n`
+      : '';
   const content = await litellmChatCompletion({
     messages: [
       { role: 'system', content: PROJECT_SYSTEM },
-      { role: 'user', content: `User request: ${message}\nFeatures: ${intent.features.join(', ')}` },
+      { role: 'user', content: `${contextBlob}User request: ${message}\nFeatures: ${intent.features.join(', ')}` },
     ],
     modelEnvKey: 'LITELLM_PLANNER_MODEL',
     defaultModel: 'gpt-oss-120b',
@@ -140,8 +152,9 @@ export async function planProject(
 
 export async function createPlan(
   message: string,
-  intent: IntentResult
+  intent: IntentResult,
+  history?: { sender: string; text: string }[]
 ): Promise<Plan> {
-  if (intent.type === 'simple') return planSimple(message, intent);
-  return planProject(message, intent);
+  if (intent.type === 'simple') return planSimple(message, intent, history);
+  return planProject(message, intent, history);
 }

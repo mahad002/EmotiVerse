@@ -124,6 +124,87 @@ export async function litellmChatCompletion(options: {
   return content as string;
 }
 
+export interface LitellmCompletionMeta {
+  content: string;
+  finishReason?: string;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+}
+
+/**
+ * Same as litellmChatCompletion but returns content plus finish_reason and usage
+ * so callers can detect truncation (finishReason === 'length').
+ */
+export async function litellmChatCompletionWithMeta(options: {
+  messages: ChatMessage[];
+  model?: string;
+  modelEnvKey?: string;
+  defaultModel?: string;
+  maxTokens?: number;
+  temperature?: number;
+  useVisionModel?: boolean;
+}): Promise<LitellmCompletionMeta> {
+  const {
+    messages,
+    model: modelOverride,
+    modelEnvKey = 'LITELLM_CHAT_MODEL',
+    defaultModel = 'mistral-small-3.1',
+    maxTokens = 1024,
+    temperature = 0.7,
+    useVisionModel,
+  } = options;
+
+  const base = getBaseUrl();
+  const key = getApiKey();
+  const useVision = useVisionModel ?? hasImageContent(messages);
+  const selectedModel = modelOverride
+    ? modelOverride
+    : useVision
+      ? (process.env.LITELLM_VISION_MODEL || process.env[modelEnvKey] || defaultModel)
+      : (process.env[modelEnvKey] || defaultModel);
+  const model = normalizeModelName(selectedModel);
+
+  const response = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const message =
+      (data && (data.error?.message || data.message)) ||
+      `LiteLLM chat completion failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const choice = data.choices?.[0];
+  const content = choice?.message?.content;
+  if (!content) {
+    throw new Error('No content returned from LiteLLM chat completion');
+  }
+
+  const finishReason =
+    typeof choice.finish_reason === 'string' ? choice.finish_reason : undefined;
+  const usage = data.usage
+    ? {
+        prompt_tokens: data.usage.prompt_tokens,
+        completion_tokens: data.usage.completion_tokens,
+        total_tokens: data.usage.total_tokens,
+      }
+    : undefined;
+
+  return { content, finishReason, usage };
+}
+
 export async function litellmTextToSpeech(options: {
   text: string;
   model?: string;

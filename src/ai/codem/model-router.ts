@@ -3,7 +3,7 @@
  * Use smaller/cheaper models when possible per plan optimizations.
  */
 
-export type TaskType = 'planning' | 'code_generation' | 'validation' | 'embedding' | 'intent';
+export type TaskType = 'planning' | 'code_generation' | 'validation' | 'embedding' | 'intent' | 'long_code';
 
 const PLANNER_ENV = 'LITELLM_PLANNER_MODEL';
 const PLANNER_FALLBACKS = ['llama-3.3-70b-instruct', 'mistral-small-3.1'];
@@ -15,6 +15,8 @@ const VALIDATOR_DEFAULT = 'llama-3.3-70b-instruct';
 
 const CHAT_ENV = 'LITELLM_CHAT_MODEL';
 const CHAT_DEFAULT = 'codestral-22b';
+
+const LONG_CODE_ENV = 'LITELLM_LONG_CODE_MODEL';
 
 const EMBEDDING_ENV = 'LITELLM_EMBEDDING_MODEL';
 const EMBEDDING_DEFAULT = 'sfr-embedding-mistral';
@@ -36,6 +38,9 @@ export function getModelForTask(taskType: TaskType, complexity?: 'low' | 'medium
 
     case 'code_generation':
       return firstDefined(process.env[CHAT_ENV], CHAT_DEFAULT);
+
+    case 'long_code':
+      return firstDefined(process.env[LONG_CODE_ENV], process.env[CHAT_ENV], CHAT_DEFAULT);
 
     case 'validation':
       return firstDefined(process.env[VALIDATOR_ENV], ...VALIDATOR_FALLBACKS, VALIDATOR_DEFAULT);

@@ -5,7 +5,7 @@
 import type { MessageSegment } from '@/features/chat/lib/chat-types';
 
 export interface IntentResult {
-  type: 'simple' | 'project';
+  type: 'simple' | 'project' | 'completion' | 'update';
   features: string[];
   complexity: 'low' | 'medium' | 'high';
 }
@@ -48,6 +48,29 @@ export interface GeneratedFile {
   path: string;
   content: string;
   language: string;
+}
+
+/** Result of executeTask when caller needs to know if output was truncated (simple-plan only). */
+export interface ExecuteTaskResult {
+  files: GeneratedFile[];
+  incomplete?: boolean;
+}
+
+/** One insertion point in a file skeleton (for long-file generation). */
+export interface CheckpointSpec {
+  id: string;
+  insertAfter?: string;
+  name?: string;
+  purpose?: string;
+  signature?: string;
+}
+
+/** Skeleton + checkpoints for segment-by-segment generation (simple long-file only). */
+export interface SkeletonResult {
+  filePath: string;
+  language: string;
+  checkpoints: CheckpointSpec[];
+  skeletonText: string;
 }
 
 export interface ValidationResult {

@@ -9,10 +9,15 @@ import { generateOpenAIResponse } from '@/ai/openai-handler';
 import { codeMPersona } from '@/config/personas';
 import { parseCodeMResponse } from '@/features/chat/lib/parse-codem-response';
 import type { MessageSegment } from '@/features/chat/lib/chat-types';
+import { litellmChatCompletion } from '@/ai/litellm-client';
+import { getModelForTask } from './model-router';
+import * as vectorStore from './vector-store';
 import { classifyIntent } from './intent-classifier';
 import { createPlan, type Plan } from './planner-agent';
-import { executeTask, executeSimplePlan } from './executor-agent';
+import { executeTask, executeSimplePlan, executeLongFileTask } from './executor-agent';
+import { generateSkeleton } from './skeleton-agent';
 import { validateFile } from './validator-agent';
+import { validateArchitecture } from './architecture-validator';
 import { generateReadme } from './readme-generator';
 import { buildDirectoryTree } from './directory-tree';
 import type {
@@ -62,11 +67,175 @@ async function fallbackSingleCall(input: AgentInput): Promise<AgentOutput> {
     characterName: 'Code M',
     history: input.history,
   });
-  const fullText = result.response?.join('') ?? '';
+  const fullText = result.response?.join('\n') ?? '';
   const segments = parseCodeMResponse(fullText);
   return {
     type: 'simple',
     response: fullText,
+    segments,
+  };
+}
+
+/** Infer language from file path for completion prompt. */
+function inferLanguageFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+    py: 'python', css: 'css', html: 'html', json: 'json', md: 'markdown',
+  };
+  return map[ext] ?? ext;
+}
+
+/**
+ * Completion flow: load last generated file from session, complete it, merge and return.
+ * Only used when intent === 'completion'; does not touch project flow.
+ */
+async function runCompletionFlow(
+  input: AgentInput,
+  onProgress?: (event: ProgressEvent) => void
+): Promise<AgentOutput> {
+  const { sessionId } = input;
+  const docs = vectorStore.getDocuments(sessionId);
+  const codeDocs = docs.filter((d) => d.path !== 'README.md' && d.path !== 'SETUP.md');
+  const lastDoc = codeDocs.length > 0 ? codeDocs[codeDocs.length - 1] : null;
+  if (!lastDoc || !lastDoc.content.trim()) {
+    return fallbackSingleCall(input);
+  }
+
+  onProgress?.({ stage: 'planning', detail: 'Completing the file...' });
+  const lang = inferLanguageFromPath(lastDoc.path);
+  const maxContext = 3500;
+  const tail = lastDoc.content.length > maxContext
+    ? lastDoc.content.slice(-maxContext)
+    : lastDoc.content;
+
+  const model = getModelForTask('long_code');
+  const systemPrompt = `You are Code M. The user has a truncated or incomplete file. Your task is to output ONLY the continuation of the file—the part that is missing. Do not repeat any of the content you are given. Start from the very next character/line after the given content. Preserve the same style, indentation, and structure. Output a single markdown fenced code block with language ${lang}.`;
+  const userPrompt = `Complete the following truncated file. Output ONLY the continuation in a single fenced code block (no repetition of the content below).\n\n\`\`\`${lang}\n${tail}\n\`\`\``;
+
+  let continuation: string;
+  try {
+    const content = await litellmChatCompletion({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      model,
+      maxTokens: 4096,
+      temperature: 0.2,
+    });
+    const blockMatch = content.match(/```(?:\w*)\s*\n?([\s\S]*?)```/);
+    continuation = blockMatch ? blockMatch[1].trim() : content.trim();
+  } catch (err) {
+    console.error('Code M completion call failed:', err);
+    return fallbackSingleCall(input);
+  }
+
+  const completedContent = lastDoc.content.trimEnd() + '\n' + continuation;
+  try {
+    await vectorStore.addDocument(sessionId, completedContent, lastDoc.path);
+  } catch {
+    // non-fatal
+  }
+
+  const file: GeneratedFile = {
+    path: lastDoc.path,
+    content: completedContent,
+    language: lang,
+  };
+  const segments = buildSegmentsFromFiles('Completed the file.', [file]);
+  onProgress?.({ stage: 'complete' });
+  return {
+    type: 'simple',
+    response: 'Completed the file.',
+    segments,
+  };
+}
+
+/**
+ * Update flow: user wants to edit a specific segment/part of a previously generated file.
+ * Load the file from session context (vector store), ask the model for the COMPLETE file with
+ * that part updated, then return the full file so the user gets one complete fixed/improved file.
+ */
+async function runUpdateFlow(
+  input: AgentInput,
+  onProgress?: (event: ProgressEvent) => void
+): Promise<AgentOutput> {
+  const { message, sessionId } = input;
+  const docs = vectorStore.getDocuments(sessionId);
+  const codeDocs = docs.filter(
+    (d) =>
+      d.path !== 'README.md' &&
+      d.path !== 'SETUP.md' &&
+      !d.path.includes(':skeleton') &&
+      !d.path.includes('#')
+  );
+  if (codeDocs.length === 0) {
+    return fallbackSingleCall(input);
+  }
+
+  let targetDoc: { content: string; path: string };
+  try {
+    const searchResults = await vectorStore.search(sessionId, message, 2);
+    const fromSearch = searchResults.find((r) =>
+      codeDocs.some((d) => d.path === r.path)
+    );
+    targetDoc = fromSearch
+      ? { path: fromSearch.path, content: fromSearch.content }
+      : codeDocs[codeDocs.length - 1];
+  } catch {
+    targetDoc = codeDocs[codeDocs.length - 1];
+  }
+
+  if (!targetDoc.content.trim()) {
+    return fallbackSingleCall(input);
+  }
+
+  onProgress?.({ stage: 'planning', detail: 'Updating the file...' });
+  const lang = inferLanguageFromPath(targetDoc.path);
+  const maxContext = 12000;
+  const contentForPrompt =
+    targetDoc.content.length > maxContext
+      ? targetDoc.content.slice(0, maxContext) + '\n\n... (file truncated for context)'
+      : targetDoc.content;
+
+  const systemPrompt = `You are Code M. The user previously generated a file. They want you to update only a specific part (segment/section) of it. You MUST output the COMPLETE file with that part updated—one single file, not just the changed snippet. Use a single markdown fenced code block with the correct language (e.g. \`\`\`${lang}\`\`\`). Output ONLY the code block, no extra prose.`;
+  const userPrompt = `Current file (${targetDoc.path}):\n\`\`\`${lang}\n${contentForPrompt}\n\`\`\`\n\nUser request: ${message}\n\nOutput the complete updated file in one code block (same path and language).`;
+
+  let updatedContent: string;
+  try {
+    const response = await litellmChatCompletion({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      model: getModelForTask('code_generation'),
+      maxTokens: 8192,
+      temperature: 0.2,
+    });
+    const blockMatch = response.match(/```(?:\w*)\s*\n?([\s\S]*?)```/);
+    updatedContent = blockMatch ? blockMatch[1].trim() : response.trim();
+  } catch (err) {
+    console.error('Code M update flow failed:', err);
+    return fallbackSingleCall(input);
+  }
+
+  try {
+    await vectorStore.addDocument(sessionId, updatedContent, targetDoc.path);
+  } catch {
+    // non-fatal
+  }
+
+  const file: GeneratedFile = {
+    path: targetDoc.path,
+    content: updatedContent,
+    language: lang,
+  };
+  const segments = buildSegmentsFromFiles('Updated the file.', [file]);
+  onProgress?.({ stage: 'complete' });
+  return {
+    type: 'simple',
+    response: 'Updated the file. Here is the complete fixed/improved file:',
     segments,
   };
 }
@@ -80,44 +249,116 @@ export async function runCodeMAgent(
   try {
     onProgress?.({ stage: 'classifying' });
     const intent = await classifyIntent(message, history);
+
+    if (intent.type === 'completion') {
+      return runCompletionFlow(input, onProgress);
+    }
+    if (intent.type === 'update') {
+      return runUpdateFlow(input, onProgress);
+    }
+
     onProgress?.({ stage: 'planning', detail: intent.type === 'project' ? 'Generating architecture...' : 'Planning...' });
 
     let plan: Plan;
     try {
-      plan = await createPlan(message, intent);
+      plan = await createPlan(message, intent, history);
     } catch (planError) {
       console.error('Code M planner failed, falling back to single-call:', planError);
       return fallbackSingleCall(input);
     }
 
     if (plan.type === 'simple') {
-      const { response, files } = await executeSimplePlan(plan, sessionId);
-      const segments = buildSegmentsFromFiles(response, files);
+      const useLongFileFlow =
+        intent.complexity === 'high' &&
+        plan.singleFileHint &&
+        plan.singleFileHint.path.length > 0;
+
+      if (useLongFileFlow) {
+        try {
+          const skeleton = await generateSkeleton(
+            plan.description,
+            plan.singleFileHint!.path,
+            plan.singleFileHint!.language || 'text',
+            sessionId
+          );
+          if (skeleton.checkpoints.length > 0) {
+            const longResult = await executeLongFileTask(
+              skeleton,
+              plan.description,
+              sessionId,
+              (idx, total) => onProgress?.({ stage: 'planning', detail: `Generating segment ${idx}/${total}...` })
+            );
+            const segments = buildSegmentsFromFiles(
+              `Here's the implementation for: ${plan.description}`,
+              longResult.files
+            );
+            onProgress?.({ stage: 'complete' });
+            return {
+              type: 'simple',
+              response: `Here's the implementation for: ${plan.description}`,
+              segments,
+            };
+          }
+        } catch (skeletonErr) {
+          console.warn('Code M skeleton flow failed, falling back to one-shot:', skeletonErr);
+        }
+      }
+
+      let result = await executeSimplePlan(plan, sessionId, { history });
+      if (result.incomplete) {
+        const retryMaxTokens = typeof process.env.LITELLM_CODE_MAX_TOKENS === 'string'
+          ? parseInt(process.env.LITELLM_CODE_MAX_TOKENS, 10) || 4096
+          : 4096;
+        const retry = await executeSimplePlan(plan, sessionId, { maxTokens: retryMaxTokens, history });
+        if (!retry.incomplete) result = retry;
+      }
+      const segments = buildSegmentsFromFiles(result.response, result.files);
       onProgress?.({ stage: 'complete' });
-      return { type: 'simple', response, segments };
+      return { type: 'simple', response: result.response, segments };
     }
 
-    // Project mode: emit plan so client can show architecture + todo list
+    // Project mode: validate architecture (completeness, no missing files like App.jsx)
     const projectPlan = plan as ProjectPlan;
-    onProgress?.({ stage: 'plan_ready', plan: projectPlan });
+    let planToUse = projectPlan;
+    try {
+      onProgress?.({ stage: 'planning', detail: 'Checking architecture...' });
+      const archValidation = await validateArchitecture(projectPlan, message);
+      if (!archValidation.passed && archValidation.issues.length > 0) {
+        const fixPrompt = `[Architecture review found issues that must be fixed in the plan: ${archValidation.issues.join('; ')}. Output a corrected plan that includes all required files (e.g. index.html and App.jsx for a React app) and assigns each to a task.]`;
+        const correctedPlan = await createPlan(
+          `${message}\n\n${fixPrompt}`,
+          intent,
+          history
+        );
+        if (correctedPlan.type === 'project') {
+          planToUse = correctedPlan;
+          onProgress?.({ stage: 'plan_ready', plan: planToUse });
+        }
+      } else {
+        onProgress?.({ stage: 'plan_ready', plan: projectPlan });
+      }
+    } catch (archErr) {
+      console.warn('Code M architecture validation skipped:', archErr);
+      onProgress?.({ stage: 'plan_ready', plan: projectPlan });
+    }
 
     const allFiles: GeneratedFile[] = [];
     const completed = new Set<string>();
 
     // Run tasks sequentially so one failure does not stop the rest; no breakage until all attempted
-    while (completed.size < projectPlan.tasks.length) {
-      const runnableIds = getRunnableTaskIds(projectPlan, completed);
+    while (completed.size < planToUse.tasks.length) {
+      const runnableIds = getRunnableTaskIds(planToUse, completed);
       if (runnableIds.length === 0) break;
 
-      const runnableTasks = projectPlan.tasks.filter((t) => runnableIds.includes(t.id));
+      const runnableTasks = planToUse.tasks.filter((t) => runnableIds.includes(t.id));
 
       for (const task of runnableTasks) {
-        const taskIndex = projectPlan.tasks.findIndex((t) => t.id === task.id);
+        const taskIndex = planToUse.tasks.findIndex((t) => t.id === task.id);
         onProgress?.({
           stage: 'executing',
           taskId: task.id,
           taskIndex: taskIndex >= 0 ? taskIndex : completed.size,
-          totalTasks: projectPlan.tasks.length,
+          totalTasks: planToUse.tasks.length,
         });
 
         let taskFiles: GeneratedFile[] = [];
@@ -129,14 +370,15 @@ export async function runCodeMAgent(
             if (attempt > 0) {
               onProgress?.({ stage: 'fixing', taskId: task.id, attempt });
             }
-            taskFiles = await executeTask(task, projectPlan, sessionId, fixPrompt);
+            const taskResult = await executeTask(task, planToUse, sessionId, fixPrompt);
+            taskFiles = taskResult.files;
             onProgress?.({ stage: 'validating', taskId: task.id });
 
             const relatedFiles = allFiles.map((f) => ({ path: f.path, content: f.content }));
             let allPassed = true;
             for (const file of taskFiles) {
               try {
-                const validation = await validateFile(file, projectPlan, relatedFiles);
+                const validation = await validateFile(file, planToUse, relatedFiles, task);
                 if (!validation.passed && validation.severity === 'error') {
                   allPassed = false;
                   fixPrompt = validation.issues.join('\n');
@@ -172,7 +414,7 @@ export async function runCodeMAgent(
     if (allFiles.length > 0) {
       try {
         const { readmeContent, setupCommands: commands } = await generateReadme(
-          projectPlan,
+          planToUse,
           allFiles,
           directoryTree
         );
@@ -220,7 +462,7 @@ export async function runCodeMAgent(
       type: 'project',
       response,
       files: allFiles,
-      plan: projectPlan,
+      plan: planToUse,
       directoryTree,
       setupCommands,
     };

@@ -72,6 +72,7 @@ import { TTS_VOICE_STORAGE_KEY, getValidTtsVoice } from '@/config/tts-voices';
 import { USER_MESSAGES } from '@/config/user-messages';
 import HeroDashboard from '@/components/codem-dashboard';
 import TypeMDashboard from '@/components/typem-dashboard';
+import MahadDashboard from '@/components/mahad-dashboard';
 import { ChatSearchBar } from '@/features/chat/components/search-bar';
 import { ChatSidebar } from '@/features/chat/components/chat-sidebar';
 import { ChatHeader } from '@/features/chat/components/chat-header';
@@ -248,6 +249,7 @@ export default function ClientPage() {
     selectedCharacterId ? (charactersList.find((c) => c.id === selectedCharacterId) ?? null) : null;
   const isCodeMSelected = selectedCharacterId ? isCodeM(selectedCharacterId) : false;
   const isTypeMSelected = selectedCharacterId ? isTypeM(selectedCharacterId) : false;
+  const isMahadSelected = selectedCharacterId ? isMahad(selectedCharacterId) : false;
   const activePersona = isCodeMSelected ? codeMPersona : isTypeMSelected ? typeMPersona : selectedPersona;
 
   useEffect(() => {
@@ -412,7 +414,7 @@ export default function ClientPage() {
 
       // Code M: buffer full response, parse into text + code segments, add one message
       if (isCodeM(characterId) && data.response.length > 0) {
-        const fullText = data.response.join('');
+        const fullText = data.response.join('\n');
         const segments = parseCodeMResponse(fullText);
         const newAiMessage: Message = {
           id: 'ai-' + Date.now(),
@@ -1413,7 +1415,18 @@ export default function ClientPage() {
       />
 
       {/* Settings Dropdown - Hidden by default, shown on menu click */}
-      <div className="bg-white dark:bg-[#1f2c34] border-b border-gray-200 dark:border-[#2a3942] px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+      <div
+        className={cn(
+          'border-b px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm',
+          capabilities?.useTerminalTheme
+            ? 'bg-white dark:bg-[#1f2c34] border-gray-200 dark:border-[#2a3942]'
+            : capabilities?.useWritingTheme
+              ? 'bg-[#fefdfb] dark:bg-stone-950 border-amber-200/70 dark:border-amber-900/40'
+              : capabilities?.useMahadTheme
+                ? 'bg-gradient-to-r from-violet-50 via-white to-rose-50 dark:from-[#171022] dark:via-[#120b19] dark:to-[#1d0d18] border-violet-200/60 dark:border-violet-900/40 shadow-[0_12px_30px_rgba(139,92,246,0.08)]'
+                : 'bg-white dark:bg-[#1f2c34] border-gray-200 dark:border-[#2a3942]'
+        )}
+      >
         {isCodeMSelected ? (
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Mode:</label>
@@ -1428,6 +1441,38 @@ export default function ClientPage() {
               <PenLine className="w-3.5 h-3.5" />
               {typeMPersona.name}
             </div>
+          </div>
+        ) : isMahadSelected ? (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-violet-800 dark:text-violet-300 whitespace-nowrap">Mood:</label>
+            <Select
+              value={selectedPersonaId}
+              onValueChange={(value) => {
+                setSelectedPersonaId(value);
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                }
+                setAudioQueue([]);
+                setIsAudioPlaying(false);
+              }}
+            >
+              <SelectTrigger
+                id="persona-select"
+                className="h-9 min-w-[180px] text-xs bg-white/80 dark:bg-violet-950/30 text-violet-900 dark:text-violet-100 border border-violet-200/80 dark:border-violet-800/60 rounded-full shadow-[0_6px_20px_rgba(139,92,246,0.12)]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                  <SelectValue placeholder="Choose mood..." />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-white/95 dark:bg-[#1a1124] text-violet-950 dark:text-violet-50 border border-violet-200 dark:border-violet-900/60">
+                {personas.map((persona) => (
+                  <SelectItem key={persona.id} value={persona.id}>
+                    {persona.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -1473,37 +1518,64 @@ export default function ClientPage() {
         />
       )}
 
-      {/* Messages Area - WhatsApp style; Type M uses paper/letter theme */}
+      {/* Messages Area - character-specific canvas */}
       <div className={cn(
         "flex-1 overflow-hidden relative",
-        capabilities?.useWritingTheme && "bg-[#f5f1eb] dark:bg-[#1a1814]"
+        capabilities?.useWritingTheme && "bg-[#f5f1eb] dark:bg-[#1a1814]",
+        capabilities?.useMahadTheme && "bg-gradient-to-br from-violet-50 via-fuchsia-50/60 to-rose-50 dark:from-[#0e0914] dark:via-[#130a19] dark:to-[#180a14]"
       )}>
-        <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
+        {capabilities?.useMahadTheme && (
+          <>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(244,63,94,0.12),transparent_28%),radial-gradient(circle_at_bottom,rgba(217,70,239,0.10),transparent_30%)]" />
+            <div className="pointer-events-none absolute inset-0 opacity-[0.06] dark:opacity-[0.08] [background-image:linear-gradient(rgba(139,92,246,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.22)_1px,transparent_1px)] [background-size:22px_22px]" />
+          </>
+        )}
+        <ScrollArea className="h-full w-full min-w-0" ref={scrollAreaRef}>
           <div className={cn(
-            "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col",
+            "px-2 sm:px-4 py-4 space-y-1 min-h-full flex flex-col min-w-0 max-w-full",
             capabilities?.messagesAlignStart ? "justify-start" : "justify-end",
-            capabilities?.useWritingTheme && "bg-[#faf8f5] dark:bg-[#1c1917] min-h-full"
+            capabilities?.useWritingTheme && "bg-[#faf8f5] dark:bg-[#1c1917] min-h-full",
+            capabilities?.useMahadTheme && "bg-white/20 dark:bg-transparent backdrop-blur-[1px] min-h-full"
           )}>
-            {/* Character dashboard pinned at top (Code M or Type M) */}
+            {/* Character dashboard pinned at top (Mahad, Code M, or Type M) */}
             {capabilities?.showDashboardAboveMessages && (
               <div
-                className={`w-full mb-4 pb-4 border-b ${
-                  isTypeMSelected ? 'border-amber-900/20 dark:border-amber-800/20' : 'border-emerald-900/30'
-                }`}
+                className={cn(
+                  'w-full mb-4 pb-4 border-b',
+                  isMahadSelected && 'border-violet-900/20 dark:border-violet-800/20',
+                  isTypeMSelected && 'border-amber-900/20 dark:border-amber-800/20',
+                  isCodeMSelected && 'border-emerald-900/20 dark:border-emerald-800/20'
+                )}
               >
-                {isTypeMSelected ? <TypeMDashboard /> : <HeroDashboard />}
+                {isMahadSelected ? (
+                  <MahadDashboard />
+                ) : isTypeMSelected ? (
+                  <TypeMDashboard />
+                ) : (
+                  <HeroDashboard />
+                )}
               </div>
             )}
             {displayMessages.length === 0 && (
               <div className="flex-1 flex items-center justify-center p-8">
                 {messages.length === 0 ? (
                   capabilities?.showEmptyStatePrompt && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className={cn(
+                      'text-sm',
+                      capabilities?.useMahadTheme
+                        ? 'rounded-full px-4 py-2 bg-white/70 dark:bg-violet-950/25 border border-violet-200/70 dark:border-violet-800/40 text-violet-800 dark:text-violet-200 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400'
+                    )}>
                       Start a conversation with {selectedCharacter.name}
                     </p>
                   )
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className={cn(
+                    'text-sm',
+                    capabilities?.useMahadTheme
+                      ? 'rounded-full px-4 py-2 bg-white/70 dark:bg-violet-950/25 border border-violet-200/70 dark:border-violet-800/40 text-violet-800 dark:text-violet-200 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400'
+                  )}>
                     No messages match your search.
                   </p>
                 )}
@@ -1518,7 +1590,7 @@ export default function ClientPage() {
                 <div
                   key={msg.id}
                   className={cn(
-                  'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
+                  'flex items-end gap-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 min-w-0 max-w-full',
                   msg.sender === 'user' ? 'justify-end' : 'justify-start',
                   isConsecutive && 'mt-0.5',
                   !isConsecutive && 'mt-2',
@@ -1527,7 +1599,14 @@ export default function ClientPage() {
               >
                 {showAvatar ? (
                   <Avatar className="h-7 w-7 flex-shrink-0">
-                    <AvatarFallback className="bg-gray-200 text-gray-600 text-xs dark:bg-[#1f2c34] dark:text-white">
+                    <AvatarFallback
+                      className={cn(
+                        'text-xs',
+                        capabilities?.useMahadTheme
+                          ? 'bg-gradient-to-br from-violet-500 to-rose-500 text-white'
+                          : 'bg-gray-200 text-gray-600 dark:bg-[#1f2c34] dark:text-white'
+                      )}
+                    >
                       {selectedCharacter.name.charAt(0)}
                     </AvatarFallback>
                     </Avatar>
@@ -1537,19 +1616,25 @@ export default function ClientPage() {
 
                 {/* Wrapper so reaction badge and trigger sit outside the message bubble */}
                 <div className={cn(
-                  'group relative overflow-visible',
-                  isTypeMSelected && msg.sender === 'ai' && msg.documentPlan
-                    ? 'w-full max-w-full'
+                  'group relative overflow-visible min-w-0',
+                  (isTypeMSelected && msg.sender === 'ai' && msg.documentPlan) || 
+                  (isCodeMSelected && msg.sender === 'ai' && (msg.segments?.length || (msg.projectFiles?.length ?? 0) || msg.agentPlan))
+                    ? 'w-full max-w-[calc(100%-80px)]'
                     : 'max-w-[72%] sm:max-w-[75%] md:max-w-[65%]',
                   msg.sender === 'user' && 'ml-auto'
                 )}>
                   <div
                     className={cn(
                       'relative rounded-lg px-2 py-1.5 text-[15px] break-words',
+                      isCodeMSelected && msg.sender === 'ai' && (msg.segments?.length || (msg.projectFiles?.length ?? 0) || msg.agentPlan) && 'min-w-0 w-full max-w-full overflow-x-auto',
                       capabilities?.useTerminalTheme
                         ? msg.sender === 'user'
                           ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 rounded-tr-none border border-emerald-300 dark:border-emerald-800/60 font-mono text-sm'
                           : 'bg-white dark:bg-[#0d1a12] text-gray-800 dark:text-emerald-100 rounded-tl-none border-l-2 border-emerald-500 font-mono text-sm shadow-sm'
+                        : capabilities?.useMahadTheme
+                          ? msg.sender === 'user'
+                            ? 'bg-gradient-to-r from-violet-600 via-fuchsia-600 to-rose-500 text-white rounded-[20px] rounded-tr-md border border-white/10 shadow-[0_12px_30px_rgba(168,85,247,0.28)]'
+                            : 'bg-white/85 dark:bg-white/5 backdrop-blur-md text-gray-900 dark:text-violet-50 rounded-[20px] rounded-tl-md border border-violet-200/70 dark:border-violet-800/40 shadow-[0_8px_30px_rgba(139,92,246,0.08)]'
                         : isTypeMSelected && msg.sender === 'ai' && msg.documentPlan
                           ? 'bg-transparent p-0 rounded-xl shadow-none border-0 max-w-full'
                           : msg.sender === 'user'
@@ -1726,7 +1811,7 @@ export default function ClientPage() {
                               <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse delay-150"></span>
                             </div>
                           )
-                        ) : isCodeMSelected && msg.sender === 'ai' && (msg.projectFiles?.length > 0 || msg.agentPlan) ? (
+                        ) : isCodeMSelected && msg.sender === 'ai' && ((msg.projectFiles?.length ?? 0) > 0 || msg.agentPlan) ? (
                           <CodeMProjectView
                             files={msg.projectFiles ?? []}
                             plan={msg.agentPlan}
@@ -1769,6 +1854,8 @@ export default function ClientPage() {
                               'text-[11px] leading-none',
                               capabilities?.useTerminalTheme
                                 ? 'text-emerald-500 dark:text-emerald-800 font-mono'
+                                : capabilities?.useMahadTheme
+                                  ? 'text-violet-700/80 dark:text-violet-300/70'
                                 : 'text-gray-500 dark:text-gray-400'
                             )}>
                               {new Date().toLocaleTimeString('en-US', {
@@ -1790,7 +1877,10 @@ export default function ClientPage() {
                   {msg.id !== IMAGE_GENERATING_PLACEHOLDER_ID && msg.reaction && (
                     <div
                       className={cn(
-                        'absolute bottom-0 translate-y-[80%] flex items-center justify-center min-w-[22px] h-5 px-1 rounded-full bg-gray-200/90 dark:bg-[#2a3942]/95 text-sm shadow-sm',
+                        'absolute bottom-0 translate-y-[80%] flex items-center justify-center min-w-[22px] h-5 px-1 rounded-full text-sm shadow-sm',
+                        capabilities?.useMahadTheme
+                          ? 'bg-white/90 dark:bg-violet-950/90 border border-violet-200/70 dark:border-violet-800/40'
+                          : 'bg-gray-200/90 dark:bg-[#2a3942]/95',
                         msg.sender === 'user' ? 'right-2 left-auto' : 'left-2'
                       )}
                       title="Reaction"
@@ -1818,7 +1908,12 @@ export default function ClientPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 shrink-0 rounded-full bg-gray-200/80 hover:bg-gray-300 dark:bg-[#3b4a54] dark:hover:bg-[#4a5a64]"
+                            className={cn(
+                              'h-7 w-7 shrink-0 rounded-full',
+                              capabilities?.useMahadTheme
+                                ? 'bg-white/90 hover:bg-violet-100 text-violet-700 border border-violet-200/70 dark:bg-violet-950/80 dark:hover:bg-violet-900/70 dark:text-violet-200 dark:border-violet-800/50'
+                                : 'bg-gray-200/80 hover:bg-gray-300 dark:bg-[#3b4a54] dark:hover:bg-[#4a5a64]'
+                            )}
                             aria-label="React to message"
                             onClick={(e) => { e.stopPropagation(); setReactionPickerMessageId((id) => (id === msg.id ? null : msg.id)); }}
                           >
@@ -1849,7 +1944,14 @@ export default function ClientPage() {
                 {msg.sender === 'user' && (
                   <div className="relative h-7 w-7 flex-shrink-0">
                     <Avatar className="h-7 w-7">
-                      <AvatarFallback className="bg-[#075e54] text-white text-xs">
+                      <AvatarFallback
+                        className={cn(
+                          'text-xs',
+                          capabilities?.useMahadTheme
+                            ? 'bg-gradient-to-br from-rose-500 to-violet-600 text-white'
+                            : 'bg-[#075e54] text-white'
+                        )}
+                      >
                         <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
@@ -1872,16 +1974,23 @@ export default function ClientPage() {
         "w-full min-w-0 px-4 py-4 flex-shrink-0 border-t",
         capabilities?.useTerminalTheme
           ? "bg-[#ecfdf5] dark:bg-[#0a0f0d] border-emerald-200 dark:border-emerald-900/40"
+          : capabilities?.useMahadTheme
+            ? "bg-gradient-to-r from-violet-50/90 via-white to-rose-50/90 dark:from-[#130d1d] dark:via-[#100918] dark:to-[#180b15] border-violet-200/70 dark:border-violet-900/40"
           : "bg-[#f0f0f0] dark:bg-[#111b21] border-gray-300 dark:border-[#2a3942]"
       )}>
         {/* Mahad-only: Chat / Voice / Image mode selector */}
         {selectedCharacterId && isMahad(selectedCharacterId) && (
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-1 mb-2 rounded-full bg-white/70 dark:bg-violet-950/20 border border-violet-200/70 dark:border-violet-800/40 p-1 w-fit shadow-sm">
             <Button
               type="button"
               variant={inputMode === 'chat' ? 'secondary' : 'ghost'}
               size="sm"
-              className="h-8 px-3 text-xs rounded-full"
+              className={cn(
+                'h-8 px-3 text-xs rounded-full transition-all',
+                inputMode === 'chat'
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-95'
+                  : 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+              )}
               onClick={() => setInputMode('chat')}
             >
               <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
@@ -1891,7 +2000,12 @@ export default function ClientPage() {
               type="button"
               variant={inputMode === 'voice' ? 'secondary' : 'ghost'}
               size="sm"
-              className="h-8 px-3 text-xs rounded-full"
+              className={cn(
+                'h-8 px-3 text-xs rounded-full transition-all',
+                inputMode === 'voice'
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-95'
+                  : 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+              )}
               onClick={() => setInputMode('voice')}
             >
               <Mic className="h-3.5 w-3.5 mr-1.5" />
@@ -1901,7 +2015,12 @@ export default function ClientPage() {
               type="button"
               variant={inputMode === 'image' ? 'secondary' : 'ghost'}
               size="sm"
-              className="h-8 px-3 text-xs rounded-full"
+              className={cn(
+                'h-8 px-3 text-xs rounded-full transition-all',
+                inputMode === 'image'
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-95'
+                  : 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+              )}
               onClick={() => setInputMode('image')}
             >
               <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -1913,10 +2032,10 @@ export default function ClientPage() {
         {selectedCharacterId && isMahad(selectedCharacterId) && inputMode === 'image' && (
           <div className="flex items-center gap-1 mb-2">
             <Select value={imageGenQuality} onValueChange={(v: 'high' | 'fast') => setImageGenQuality(v)}>
-              <SelectTrigger className="h-7 w-24 text-xs rounded-md">
+              <SelectTrigger className="h-8 w-28 text-xs rounded-full bg-white/80 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/50 text-violet-900 dark:text-violet-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-[#1a1124] border-violet-200 dark:border-violet-900/60 text-violet-950 dark:text-violet-50">
                 <SelectItem value="fast">Fast</SelectItem>
                 <SelectItem value="high">High quality</SelectItem>
               </SelectContent>
@@ -1925,21 +2044,40 @@ export default function ClientPage() {
         )}
         {/* Preview when user has picked an image (Send photo - available in Chat/Voice for both) */}
         {pendingImageDataUri && (inputMode === 'chat' || inputMode === 'voice') && (
-          <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-white/80 dark:bg-[#2a3942]/80 border border-gray-200 dark:border-[#3b4a54]">
+          <div className={cn(
+            'flex items-center gap-3 mb-2 p-2 rounded-2xl border',
+            capabilities?.useMahadTheme
+              ? 'bg-white/80 dark:bg-violet-950/20 border-violet-200/70 dark:border-violet-800/40 shadow-[0_8px_24px_rgba(139,92,246,0.08)]'
+              : 'bg-white/80 dark:bg-[#2a3942]/80 border-gray-200 dark:border-[#3b4a54]'
+          )}>
             <img
               src={pendingImageDataUri}
               alt="Uploaded"
-              className="h-14 w-14 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-[#3b4a54]"
+              className={cn(
+                'h-14 w-14 rounded-xl object-cover shrink-0 border',
+                capabilities?.useMahadTheme
+                  ? 'border-violet-200/80 dark:border-violet-800/50'
+                  : 'border-gray-200 dark:border-[#3b4a54]'
+              )}
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#111b21] dark:text-white">You have uploaded an image</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Add a caption below (optional) and tap Send</p>
+              <p className={cn(
+                'text-sm font-medium',
+                capabilities?.useMahadTheme ? 'text-violet-900 dark:text-violet-100' : 'text-[#111b21] dark:text-white'
+              )}>You have uploaded an image</p>
+              <p className={cn(
+                'text-xs',
+                capabilities?.useMahadTheme ? 'text-violet-700/80 dark:text-violet-300/70' : 'text-gray-500 dark:text-gray-400'
+              )}>Add a caption below (optional) and tap Send</p>
             </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              className={cn(
+                'h-8 w-8 shrink-0 rounded-full hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30',
+                capabilities?.useMahadTheme ? 'text-violet-600 dark:text-violet-300' : 'text-gray-500'
+              )}
               aria-label="Remove image"
               onClick={() => { setPendingImageDataUri(null); setPendingImageCaption(''); }}
             >
@@ -1949,13 +2087,27 @@ export default function ClientPage() {
         )}
         {/* Preview when user has recorded a voice message (Voice mode) */}
         {pendingVoiceDataUri && inputMode === 'voice' && (
-          <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-white/80 dark:bg-[#2a3942]/80 border border-gray-200 dark:border-[#3b4a54]">
-            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <Mic className="h-6 w-6 text-primary" />
+          <div className={cn(
+            'flex items-center gap-3 mb-2 p-2 rounded-2xl border',
+            capabilities?.useMahadTheme
+              ? 'bg-white/80 dark:bg-violet-950/20 border-violet-200/70 dark:border-violet-800/40 shadow-[0_8px_24px_rgba(139,92,246,0.08)]'
+              : 'bg-white/80 dark:bg-[#2a3942]/80 border-gray-200 dark:border-[#3b4a54]'
+          )}>
+            <div className={cn(
+              'h-12 w-12 rounded-full flex items-center justify-center shrink-0',
+              capabilities?.useMahadTheme ? 'bg-violet-500/15 dark:bg-violet-500/20' : 'bg-primary/20'
+            )}>
+              <Mic className={cn('h-6 w-6', capabilities?.useMahadTheme ? 'text-violet-600 dark:text-violet-300' : 'text-primary')} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#111b21] dark:text-white">Voice message recorded</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className={cn(
+                'text-sm font-medium',
+                capabilities?.useMahadTheme ? 'text-violet-900 dark:text-violet-100' : 'text-[#111b21] dark:text-white'
+              )}>Voice message recorded</p>
+              <p className={cn(
+                'text-xs',
+                capabilities?.useMahadTheme ? 'text-violet-700/80 dark:text-violet-300/70' : 'text-gray-500 dark:text-gray-400'
+              )}>
                 {Math.floor(pendingVoiceDurationSeconds / 60)}:{(Math.floor(pendingVoiceDurationSeconds % 60)).toString().padStart(2, '0')} — Tap Send to send
               </p>
             </div>
@@ -1963,7 +2115,10 @@ export default function ClientPage() {
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              className={cn(
+                'h-8 w-8 shrink-0 rounded-full hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30',
+                capabilities?.useMahadTheme ? 'text-violet-600 dark:text-violet-300' : 'text-gray-500'
+              )}
               aria-label="Delete recording"
               onClick={() => { setPendingVoiceDataUri(null); setPendingVoiceDurationSeconds(0); }}
             >
@@ -1975,6 +2130,8 @@ export default function ClientPage() {
           "w-full min-w-0 flex items-center gap-2 rounded-full px-2 py-2 relative",
           capabilities?.useTerminalTheme
             ? "bg-white dark:bg-[#0d1a12] border border-emerald-300 dark:border-emerald-900/60 rounded-xl text-gray-800 dark:text-emerald-200"
+            : capabilities?.useMahadTheme
+              ? "bg-white/80 dark:bg-violet-950/25 border border-violet-200/70 dark:border-violet-800/40 rounded-[28px] backdrop-blur-md text-violet-950 dark:text-violet-50 shadow-[0_14px_40px_rgba(139,92,246,0.12)]"
             : "bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-white"
         )}>
           <input
@@ -1997,7 +2154,12 @@ export default function ClientPage() {
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54]"
+                className={cn(
+                  'h-9 w-9 shrink-0 rounded-full',
+                  capabilities?.useMahadTheme
+                    ? 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-[#3b4a54]'
+                )}
                 aria-label="Attach file"
               >
                 <Plus className="h-5 w-5" />
@@ -2006,7 +2168,12 @@ export default function ClientPage() {
             <PopoverContent 
               side="top" 
               align="start"
-              className="w-auto p-3 bg-white dark:bg-[#233138] border-gray-200 dark:border-[#3b4a54] shadow-xl"
+              className={cn(
+                'w-auto p-3 shadow-xl',
+                capabilities?.useMahadTheme
+                  ? 'bg-white/95 dark:bg-[#1a1124] border-violet-200 dark:border-violet-900/60'
+                  : 'bg-white dark:bg-[#233138] border-gray-200 dark:border-[#3b4a54]'
+              )}
             >
               {/* Mobile: Grid layout - 2 rows x 4 columns */}
               <div className="grid grid-cols-4 gap-3 md:hidden">
@@ -2239,7 +2406,12 @@ export default function ClientPage() {
             type="button"
             size="icon"
             variant="ghost"
-            className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54]"
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-full',
+              capabilities?.useMahadTheme
+                ? 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-[#3b4a54]'
+            )}
             aria-label="Emoji"
           >
             <Smile className="h-5 w-5" />
@@ -2251,7 +2423,10 @@ export default function ClientPage() {
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="h-9 w-9 shrink-0 rounded-full"
+                  className={cn(
+                    'h-9 w-9 shrink-0 rounded-full',
+                    capabilities?.useMahadTheme && 'text-violet-700 hover:bg-violet-100 dark:text-violet-200 dark:hover:bg-violet-900/40'
+                  )}
                   onClick={() => imageInputRef.current?.click()}
                   aria-label="Send photo"
                 >
@@ -2271,7 +2446,12 @@ export default function ClientPage() {
                       ? 'Describe the image to generate...'
                       : 'Type a message'
                 }
-            className="flex-1 min-w-0 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 min-h-[40px]"
+            className={cn(
+              'flex-1 min-w-0 resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-2 py-2 max-h-24 text-[15px] min-h-[40px]',
+              capabilities?.useMahadTheme
+                ? 'text-violet-950 dark:text-violet-50 placeholder:text-violet-500/70 dark:placeholder:text-violet-300/60'
+                : 'text-[#111b21] dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400'
+            )}
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -2290,7 +2470,9 @@ export default function ClientPage() {
               size="icon"
               variant="ghost"
               className={cn(
-                'h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54] transition-colors',
+                capabilities?.useMahadTheme
+                  ? 'h-9 w-9 shrink-0 text-violet-700 hover:bg-violet-100 rounded-full dark:text-violet-200 dark:hover:bg-violet-900/40 transition-colors'
+                  : 'h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 rounded-full dark:text-gray-200 dark:hover:bg-[#3b4a54] transition-colors',
                 isRecording && 'text-red-500 dark:text-red-400'
               )}
               aria-label={isRecording ? 'Stop recording' : 'Start recording'}
@@ -2315,7 +2497,12 @@ export default function ClientPage() {
                   (isCodeMSelected ? codeMAgentMutation.isPending : isTypeMSelected ? typeMAgentMutation.isPending : false)
                 }
                 size="icon"
-                className="h-9 w-9 shrink-0 bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground rounded-full transition-colors"
+                className={cn(
+                  'h-9 w-9 shrink-0 rounded-full transition-colors',
+                  capabilities?.useMahadTheme
+                    ? 'bg-gradient-to-r from-violet-600 via-fuchsia-600 to-rose-500 hover:opacity-95 text-white shadow-[0_10px_24px_rgba(168,85,247,0.3)]'
+                    : 'bg-primary hover:bg-[#064e45] dark:hover:bg-[#064e45] text-primary-foreground'
+                )}
                 aria-label="Send"
               >
                 {conversationMutation.isPending || generateImageMutation.isPending || (isCodeMSelected && codeMAgentMutation.isPending) || (isTypeMSelected && typeMAgentMutation.isPending) ? (

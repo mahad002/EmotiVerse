@@ -168,14 +168,14 @@ export function CodeMProjectView({ files, plan, className }: CodeMProjectViewPro
     <div
       className={cn(
         'rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-900/50',
-        'bg-white dark:bg-[#0a0f0d] shadow-sm min-w-0 max-w-full',
+        'bg-white dark:bg-[#0a0f0d] shadow-sm w-full min-w-0 max-w-full',
         className
       )}
     >
       {plan && (plan.tasks.length > 0 || plan.architecture) && <PlanHeader plan={plan} />}
       <SetupSection plan={plan} />
 
-      <div className="flex flex-col sm:flex-row min-h-0">
+      <div className="flex flex-col sm:flex-row min-h-0 min-w-0 w-full">
         {/* File list */}
         <div className="w-full sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 max-h-48 sm:max-h-64 overflow-y-auto">
           <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-emerald-100 dark:border-emerald-900/40">
@@ -213,7 +213,7 @@ export function CodeMProjectView({ files, plan, className }: CodeMProjectViewPro
         </div>
 
         {/* Code viewer */}
-        <div className="flex-1 min-w-0 min-h-[200px] overflow-auto flex flex-col">
+        <div className="flex-1 min-w-0 min-h-[200px] overflow-auto flex flex-col w-full">
           {selected && (
             <CodeMCodeBlock
               segment={{
@@ -222,7 +222,7 @@ export function CodeMProjectView({ files, plan, className }: CodeMProjectViewPro
                 language: selected.language ?? 'text',
                 filename: selected.path.split('/').pop() ?? selected.path,
               }}
-              className="rounded-none border-0 border-t sm:border-t-0 sm:border-l border-emerald-100 dark:border-emerald-900/40 flex-1 min-h-0"
+              className="rounded-none border-0 border-t sm:border-t-0 sm:border-l border-emerald-100 dark:border-emerald-900/40 flex-1 min-h-0 w-full"
             />
           )}
         </div>

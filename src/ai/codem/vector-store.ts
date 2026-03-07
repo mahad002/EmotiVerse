@@ -43,6 +43,13 @@ export async function addDocument(
   store.set(sessionId, docs);
 }
 
+export interface SearchResult {
+  content: string;
+  path: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+}
+
 /**
  * Search for top-K documents most similar to the query. Embeds query then cosine similarity search.
  */
@@ -50,7 +57,7 @@ export async function search(
   sessionId: string,
   query: string,
   topK: number = 5
-): Promise<{ content: string; path: string; score: number }[]> {
+): Promise<SearchResult[]> {
   const docs = store.get(sessionId);
   if (!docs || docs.length === 0) return [];
 
@@ -59,9 +66,20 @@ export async function search(
     content: doc.content,
     path: doc.path,
     score: cosineSimilarity(queryVector, doc.vector),
+    ...(doc.metadata && { metadata: doc.metadata }),
   }));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
+}
+
+/**
+ * Get all documents for a session (e.g. for completion flow to find the file to complete).
+ * Returns in storage order (last pushed = last in array).
+ */
+export function getDocuments(sessionId: string): { content: string; path: string }[] {
+  const docs = store.get(sessionId);
+  if (!docs || docs.length === 0) return [];
+  return docs.map((d) => ({ content: d.content, path: d.path }));
 }
 
 /**
