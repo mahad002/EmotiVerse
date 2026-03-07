@@ -1540,7 +1540,7 @@ export default function ClientPage() {
                   'group relative overflow-visible',
                   isTypeMSelected && msg.sender === 'ai' && msg.documentPlan
                     ? 'w-full max-w-full'
-                    : 'max-w-[85%] sm:max-w-[75%] md:max-w-[65%]',
+                    : 'max-w-[72%] sm:max-w-[75%] md:max-w-[65%]',
                   msg.sender === 'user' && 'ml-auto'
                 )}>
                   <div
